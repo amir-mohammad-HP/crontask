@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -169,8 +172,51 @@ func (l *StdLogger) log(level LogLevel, msg string, args ...any) {
 	}
 }
 
-// syncLog performs synchronous logging
+// syncLog performs synchronous logging with consistent format
 func (l *StdLogger) syncLog(level LogLevel, msg string, fields map[string]any) {
+	if l.config.Format == "json" {
+		l.jsonLog(level, msg, fields)
+	} else {
+		l.textLog(level, msg, fields)
+	}
+}
+
+// jsonLog outputs log in pure JSON format
+func (l *StdLogger) jsonLog(level LogLevel, msg string, fields map[string]any) {
+	logEntry := map[string]any{
+		"timestamp": time.Now().Format(time.RFC3339Nano),
+		"level":     level.String(),
+		"message":   msg,
+	}
+
+	// Add caller information if enabled
+	if l.config.ShowCaller {
+		if _, file, line, ok := runtime.Caller(4); ok { // 4 for jsonLog -> syncLog -> original call
+			logEntry["caller"] = fmt.Sprintf("%s:%d", filepath.Base(file), line)
+		}
+	}
+
+	// Add all fields to the log entry
+	for k, v := range fields {
+		logEntry[k] = v
+	}
+
+	// Marshal to JSON
+	jsonBytes, err := json.Marshal(logEntry)
+	if err != nil {
+		// Fallback to text format on JSON error
+		l.textLog(level, fmt.Sprintf("JSON marshal error: %v - %s", err, msg), fields)
+		return
+	}
+
+	// Output with proper newline
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	fmt.Fprintln(l.writer, string(jsonBytes))
+}
+
+// textLog outputs log in human-readable text format
+func (l *StdLogger) textLog(level LogLevel, msg string, fields map[string]any) {
 	var sb strings.Builder
 
 	// Add timestamp
@@ -182,56 +228,59 @@ func (l *StdLogger) syncLog(level LogLevel, msg string, fields map[string]any) {
 	if l.config.Colors && (l.config.Output == "stdout" || l.config.Output == "stderr") {
 		sb.WriteString(l.colorizeLevel(level))
 	} else {
-		fmt.Fprintf(l.writer, "[%s]", level)
+		sb.WriteString(fmt.Sprintf("[%s]", level))
 	}
-	sb.WriteString(" ")
+	// Add padding to reach 10 characters
+	padding := 8 - len(level.String())
+	if padding > 0 {
+		sb.WriteString(strings.Repeat(" ", padding))
+	}
 
 	// Add caller information if enabled
 	if l.config.ShowCaller {
-		if _, file, line, ok := runtime.Caller(3); ok {
-			fmt.Fprintf(l.writer, "%s:%d ", filepath.Base(file), line)
+		if _, file, line, ok := runtime.Caller(4); ok { // 4 for textLog -> syncLog -> original call
+			callerFilePath := filepath.Base(file)
+			sb.WriteString(fmt.Sprintf("%s:%d ", callerFilePath, line))
+
+			padding := 15 - len(callerFilePath) + len(strconv.Itoa(line))
+			if padding > 0 {
+				sb.WriteString(strings.Repeat(" ", padding))
+			}
 		}
 	}
 
-	// Add fields in JSON format
-	if len(fields) > 0 && l.config.Format == "json" {
-		fieldStr := ""
-		for k, v := range fields {
-			fieldStr += fmt.Sprintf("\"%s\":\"%v\",", k, v)
+	// Add fields as key=value pairs
+	if len(fields) > 0 {
+		// Sort keys for consistent output
+		keys := make([]string, 0, len(fields))
+		for k := range fields {
+			keys = append(keys, k)
 		}
-		if len(fieldStr) > 0 {
-			fieldStr = fieldStr[:len(fieldStr)-1] // Remove trailing comma
-			fmt.Fprintf(l.writer, "{%s} ", fieldStr)
-		}
-	} else if len(fields) > 0 {
-		for k, v := range fields {
-			fmt.Fprintf(l.writer, "%s=%v ", k, v)
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			v := fields[k]
+			// Handle string values with spaces by quoting them
+			switch val := v.(type) {
+			case string:
+				if strings.ContainsAny(val, " \t\n\"") {
+					sb.WriteString(fmt.Sprintf("%s=%q ", k, val))
+				} else {
+					sb.WriteString(fmt.Sprintf("%s=%s ", k, val))
+				}
+			default:
+				sb.WriteString(fmt.Sprintf("%s=%v ", k, v))
+			}
 		}
 	}
 
 	// Add message
 	sb.WriteString(msg)
 
-	// Output the log
-	l.logger.Println(sb.String())
-}
-
-// colorizeLevel adds ANSI colors to log levels
-func (l *StdLogger) colorizeLevel(level LogLevel) string {
-	switch level {
-	case DEBUG:
-		return "\033[36m[DEBUG]\033[0m" // Cyan
-	case INFO:
-		return "\033[32m[INFO]\033[0m" // Green
-	case WARN:
-		return "\033[33m[WARN]\033[0m" // Yellow
-	case ERROR:
-		return "\033[31m[ERROR]\033[0m" // Red
-	case FATAL:
-		return "\033[35m[FATAL]\033[0m" // Magenta
-	default:
-		return fmt.Sprintf("[%s]", level)
-	}
+	// Output with proper newline
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	fmt.Fprintln(l.writer, sb.String())
 }
 
 // asyncWriter handles async log writing
