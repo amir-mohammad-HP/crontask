@@ -26,7 +26,7 @@ logger:
   max_age: 30     # days
   compress: true
   timestamp_format: "2006-01-02T15:04:05.000Z"
-  show_caller: true
+  show_caller: false
   colors: false   # No colors in production logs
   async: true
   buffer_size: 5000
