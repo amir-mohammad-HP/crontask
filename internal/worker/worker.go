@@ -2,17 +2,16 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
-	"github.com/amir-mohammad-HP/crontask/internal/config"
+	"github.com/amir-mohammad-HP/crontask/internal/types"
 	"github.com/amir-mohammad-HP/crontask/pkg/logger"
 )
 
 type Worker struct {
-	config   *config.Config
-	logger   logger.Logger
+	config   *types.Config
+	logger   *logger.StdLogger
 	jobs     []Job
 	shutdown chan struct{}
 	mu       sync.RWMutex
@@ -24,7 +23,7 @@ type Job interface {
 	Schedule() time.Duration
 }
 
-func New(cfg *config.Config, logger logger.Logger) *Worker {
+func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 	return &Worker{
 		config:   cfg,
 		logger:   logger,
@@ -33,13 +32,12 @@ func New(cfg *config.Config, logger logger.Logger) *Worker {
 }
 
 func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
+
+	defer wg.Done()
 	w.logger.Info("Starting worker")
 
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		w.run(ctx)
-	}()
+	go w.run(ctx)
 
 	return nil
 }
@@ -65,7 +63,7 @@ func (w *Worker) run(ctx context.Context) {
 }
 
 func (w *Worker) executeJobs(t time.Time) {
-	fmt.Printf("Current datetime: %s\n", t.Format("2006-01-02 15:04:05"))
+	w.logger.Info("Current datetime: %s\n", t.Format("2006-01-02 15:04:05"))
 	// Execute registered jobs here
 }
 

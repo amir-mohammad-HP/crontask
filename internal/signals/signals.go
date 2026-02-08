@@ -10,10 +10,10 @@ import (
 )
 
 type Handler struct {
-	logger logger.Logger
+	logger *logger.StdLogger
 }
 
-func NewHandler(logger logger.Logger) *Handler {
+func NewHandler(logger *logger.StdLogger) *Handler {
 	return &Handler{logger: logger}
 }
 
@@ -26,7 +26,7 @@ func (h *Handler) Handle(ctx context.Context, shutdownFunc func()) {
 		h.logger.Info("Signal handler context cancelled")
 		return
 	case sig := <-sigChan:
-		h.logger.Info("Received signal", "signal", sig)
+		h.logger.Info("Received signal %s", sig.String())
 		shutdownFunc()
 	}
 }

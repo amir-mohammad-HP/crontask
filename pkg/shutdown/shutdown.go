@@ -10,13 +10,13 @@ import (
 type Task func() error
 
 type Manager struct {
-	logger   logger.Logger
+	logger   *logger.StdLogger
 	tasks    map[string]Task
 	shutdown chan struct{}
 	timeout  time.Duration
 }
 
-func NewManager(logger logger.Logger) *Manager {
+func NewManager(logger *logger.StdLogger) *Manager {
 	return &Manager{
 		logger:   logger,
 		tasks:    make(map[string]Task),
@@ -52,9 +52,9 @@ func (m *Manager) executeTasks() error {
 	defer cancel()
 
 	for name, task := range m.tasks {
-		m.logger.Info("Executing shutdown task", "task", name)
+		m.logger.Info("Executing shutdown task %s", name)
 		if err := task(); err != nil {
-			m.logger.Error("Task failed", "task", name, "error", err)
+			m.logger.Error("Task failed, task: %s, error: %s", name, err)
 		}
 	}
 

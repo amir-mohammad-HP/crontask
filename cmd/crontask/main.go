@@ -25,8 +25,16 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize structured logger with configured log level
-	logger := logger.New(cfg.LogLevel)
+	// Log the config file location if one was found
+	if configFile := config.GetConfigFileLocation(); configFile != "" {
+		log.Printf("Loaded configuration from: %s", configFile)
+	}
+
+	// Setup logger with full configuration
+	logger := logger.NewWithConfig(&cfg.Logger)
+
+	logger.Info("environment: %s", cfg.Environment)
+	logger.Info("loglevel: %s", cfg.LogLevel)
 
 	// Create application instance with dependencies
 	app := app.New(cfg, logger)

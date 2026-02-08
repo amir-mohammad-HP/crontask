@@ -4,23 +4,23 @@ import (
 	"context"
 	"sync"
 
-	"github.com/amir-mohammad-HP/crontask/internal/config"
 	"github.com/amir-mohammad-HP/crontask/internal/signals"
+	"github.com/amir-mohammad-HP/crontask/internal/types"
 	"github.com/amir-mohammad-HP/crontask/internal/worker"
 	"github.com/amir-mohammad-HP/crontask/pkg/logger"
 	"github.com/amir-mohammad-HP/crontask/pkg/shutdown"
 )
 
 type App struct {
-	config        *config.Config
-	logger        logger.Logger
+	config        *types.Config
+	logger        *logger.StdLogger
 	worker        *worker.Worker
 	shutdown      *shutdown.Manager
 	signalHandler *signals.Handler
 	wg            sync.WaitGroup
 }
 
-func New(cfg *config.Config, logger logger.Logger) *App {
+func New(cfg *types.Config, logger *logger.StdLogger) *App {
 	return &App{
 		config:        cfg,
 		logger:        logger,
@@ -31,7 +31,7 @@ func New(cfg *config.Config, logger logger.Logger) *App {
 }
 
 func (a *App) Run() error {
-	a.logger.Info("Starting CronTask application")
+	a.logger.Debug("Starting CronTask application")
 
 	// Setup signal handling
 	ctx, cancel := context.WithCancel(context.Background())
@@ -39,7 +39,7 @@ func (a *App) Run() error {
 
 	// Start signal handler
 	go a.signalHandler.Handle(ctx, func() {
-		a.logger.Info("Received shutdown signal")
+		a.logger.Debug("Received shutdown signal")
 		a.shutdown.Initiate()
 	})
 
@@ -56,12 +56,12 @@ func (a *App) Run() error {
 	<-a.shutdown.Done()
 	a.wg.Wait()
 
-	a.logger.Info("Application shutdown complete")
+	a.logger.Debug("Application shutdown complete")
 	return nil
 }
 
 func (a *App) cleanup() error {
-	a.logger.Info("Performing application cleanup")
+	a.logger.Debug("Performing application cleanup")
 	// Add cleanup logic here
 	return nil
 }
