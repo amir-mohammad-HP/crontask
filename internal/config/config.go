@@ -23,6 +23,12 @@ var defaultConfig = types.Config{
 		MaxJobs:       10,
 		RetryAttempts: 3,
 	},
+	Docker: types.DockerConfig{
+		Enabled:      true,
+		SocketPath:   "/var/run/docker.sock",
+		PollInterval: 5 * time.Second,
+		LabelPrefix:  "crontask.",
+	},
 	Shutdown: types.ShutdownConfig{
 		Timeout: 30 * time.Second,
 	},

@@ -13,6 +13,12 @@ worker:
   max_jobs: 50
   retry_attempts: 5
 
+docker:
+  enabled: true
+  socket_path: "/var/run/docker.sock"
+  poll_interval: 5s
+  label_prefix: "crontask."
+
 shutdown:
   timeout: 60s
 

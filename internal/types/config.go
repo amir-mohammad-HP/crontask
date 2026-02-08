@@ -5,6 +5,7 @@ type Config struct {
 	Environment string         `mapstructure:"environment"`
 	LogLevel    string         `mapstructure:"log_level"`
 	Worker      WorkerConfig   `mapstructure:"worker"`
+	Docker      DockerConfig   `mapstructure:"docker"`
 	Shutdown    ShutdownConfig `mapstructure:"shutdown"`
 	Logger      LoggerConfig   `mapstructure:"logger"`
 }
