@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Go Application Execution Flow</title>
+        <!-- Font Awesome -->
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        />
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Custom Tailwind Config -->
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: "#3498db",
+                            secondary: "#2c3e50",
+                            warning: "#ffc107",
+                            info: "#0dcaf0",
+                            danger: "#dc3545",
+                            darkbg: "#0f172a",
+                            darkcard: "#1e293b",
+                            darkborder: "#334155",
+                        },
+                        animation: {
+                            "fade-in": "fadeIn 0.5s ease-in-out",
+                            "slide-up": "slideUp 0.3s ease-out",
+                        },
+                        keyframes: {
+                            fadeIn: {
+                                "0%": { opacity: "0" },
+                                "100%": { opacity: "1" },
+                            },
+                            slideUp: {
+                                "0%": {
+                                    transform: "translateY(10px)",
+                                    opacity: "0",
+                                },
+                                "100%": {
+                                    transform: "translateY(0)",
+                                    opacity: "1",
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            /* Additional custom styles */
+            .mermaid {
+                overflow-x: auto;
+                background-color: transparent !important;
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            }
+            .diagram-container {
+                min-height: 300px;
+            }
+
+            /* Smooth scroll behavior */
+            html {
+                scroll-behavior: smooth;
+            }
+
+            /* Custom scrollbar */
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #334155;
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #475569;
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #64748b;
+            }
+
+            /* Dark mode adjustments for Mermaid */
+            .dark .mermaid svg {
+                background-color: transparent !important;
+            }
+
+            /* Code block styling */
+            .code-block {
+                font-family: "Fira Code", "Courier New", monospace;
+                tab-size: 2;
+            }
+
+            /* TOC transition */
+            .toc-content {
+                transition: max-height 0.3s ease-out;
+                overflow: hidden;
+            }
+        </style>
+        <script>
+            // Diagram Data Storage
+            let diagrams = [
+                {
+                    id: 1,
+                    title: "cmd/crontask/main.go",
+                    subtitle: "Entry Point - Program Initialization",
+                    category: "Entry Point",
+                    mermaidCode: `
+                      flowchart TD
+                          Start([Program Start]) --&#62; LoadConfig[Load Configuration]
+
+                          LoadConfig --&#62; ConfigSuccess{Config Loaded?}
+
+                          ConfigSuccess --&#62;|Success| LogConfig[Log Config Location]
+                          ConfigSuccess --&#62;|Error| ConfigError[Log Error & Exit]
+
+                          LogConfig --&#62; InitLogger[Initialize Logger]
+
+                          InitLogger --&#62; LogEnv[Log Environment Info]
+
+                          LogEnv --&#62; CreateApp[Create Application]
+
+                          CreateApp --&#62; RunApp[Run Application]
+
+                          RunApp --&#62; AppStatus{Application Status}
+
+                          AppStatus --&#62;|Running| TaskLoop[Execute Scheduled Tasks]
+                          AppStatus --&#62;|Error| AppError[Log Error & Exit]
+
+                          TaskLoop --&#62; Continue{Continue?}
+                          Continue --&#62;|Yes| TaskLoop
+                          Continue --&#62;|No| GracefulExit[Graceful Shutdown]
+
+                          GracefulExit --&#62; ExitSuccess([Exit Success 0])
+                          ConfigError --&#62; ExitError1([Exit Error 1])
+                          AppError --&#62; ExitError2([Exit Error 1])
+
+                          %% Styling
+                          classDef process fill:#1e293b,stroke:#3498db,stroke-width:2px,color:#e2e8f0
+                          classDef decision fill:#334155,stroke:#ffc107,stroke-width:2px,color:#e2e8f0
+                          classDef terminator fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
+                          classDef error fill:#450a0a,stroke:#dc3545,stroke-width:2px,color:#e2e8f0
+
+                          class Start,ExitSuccess terminator
+                          class ConfigSuccess,AppStatus,Continue decision
+                          class LoadConfig,LogConfig,InitLogger,LogEnv,CreateApp,RunApp process
+                          class ConfigError,AppError,GracefulExit error
+                          class TaskLoop process
+                        `,
+                    description: `
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-gray-300 mb-2">
+                                    <strong>Note:</strong> The architecture is modular by design. If you replace the
+                                    complex task scheduling logic with a simple
+                                    <code class="bg-gray-700 px-2 py-1 rounded text-gray-200">Print("Hello World")</code>
+                                    in the application's
+                                    <code class="bg-gray-700 px-2 py-1 rounded text-gray-200">Run()</code>
+                                    method, the entire initialization sequence would still execute correctly,
+                                    demonstrating the separation of concerns between infrastructure setup and
+                                    business logic.
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-green-900/20 p-4 rounded-lg border border-green-900/30">
+                                    <h4 class="font-bold text-green-300 mb-2">Exit Code 0</h4>
+                                    <p class="text-green-400">Graceful shutdown after successful execution</p>
+                                </div>
+                                <div class="bg-red-900/20 p-4 rounded-lg border border-red-900/30">
+                                    <h4 class="font-bold text-red-300 mb-2">Exit Code 1</h4>
+                                    <p class="text-red-400">Error termination during configuration loading or application runtime failures</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-400 text-sm">
+                                This diagram serves as both a technical reference for developers and a high-level
+                                overview for understanding the application's bootstrap process and runtime behavior.
+                            </p>
+                        </div>
+                        `,
+                    updated: "2026/02/10",
+                    author: "A.M.Hamidipour",
+                    color: "blue",
+                    gradient: "from-primary to-secondary",
+                },
+                {
+                    id: 2,
+                    title: "internal/config/config.go",
+                    subtitle: "Configuration Loading Flow",
+                    category: "Configuration",
+                    mermaidCode: `
+                      flowchart TD
+                        Start([Load Function Called]) --&#62; SetDefaults[Set Viper Defaults]
+
+                        SetDefaults --&#62; GetPaths[Get Configuration Paths]
+
+                        GetPaths --&#62; PathSearch{Find Config Paths?}
+
+                        PathSearch --&#62;|Success| ReadConfig[Read Configuration File]
+                        PathSearch --&#62;|Error| ReturnError[Return Error]
+
+                        ReadConfig --&#62; ConfigFound{Config File Found?}
+
+                        ConfigFound --&#62;|Found| Unmarshal[Unmarshal into Config Struct]
+                        ConfigFound --&#62;|Not Found| UseDefaults[Use Defaults Only]
+
+                        UseDefaults --&#62; BindEnv[Bind Environment Variables]
+                        Unmarshal --&#62; BindEnv
+
+                        BindEnv --&#62; Validate[Validate & Process Config]
+
+                        Validate --&#62; ReturnSuccess[Return Config Pointer]
+
+                        ReturnError --&#62; ReturnNil[Return nil, error]
+
+                        ReturnSuccess --&#62; End([Return *types.Config])
+                        ReturnNil --&#62; End
+
+                        %% Sub-process for getting config paths
+                        subgraph GetPaths [Get Configuration Paths]
+                            GP1[Get System Config Path] --&#62; GP2[Build Priority List:<br>1. Current dir<br>2. ~/.config/crontask<br>3. System dir]
+                                GP2 --&#62; GP3[Return paths array]
+                        end
+
+                        %% Styling
+                        classDef process fill:#1e293b,stroke:#8b5cf6,stroke-width:2px,color:#e2e8f0
+                        classDef decision fill:#334155,stroke:#f59e0b,stroke-width:2px,color:#e2e8f0
+                        classDef terminator fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
+
+                        class Start,End terminator
+                        class PathSearch,ConfigFound decision
+                        class SetDefaults,GetPaths,ReadConfig,UseDefaults,BindEnv,Unmarshal,Validate,ReturnSuccess,ReturnError process
+                        `,
+                    description: `
+                        <div class="space-y-4">
+                            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                                <p class="text-gray-300">
+                                    <strong>Viper:</strong> A complete configuration solution for Go applications (supports JSON, YAML, TOML, env vars, etc.)
+                                </p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-200 mb-2">Functions NOT Used in Loading Process:</h4>
+                                <div class="space-y-4">
+                                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                        <h5 class="font-semibold text-gray-200 mb-1">GetSystemConfigDir()</h5>
+                                        <p class="text-gray-400 text-sm mb-1"><strong>Purpose:</strong> Public wrapper around getSystemConfigPath()</p>
+                                        <p class="text-gray-400 text-sm mb-1"><strong>Why unused:</strong> Not called during the Load() process; could be used for other purposes like config file management</p>
+                                        <p class="text-gray-400 text-sm"><strong>Status:</strong> Available as public API for external use</p>
+                                    </div>
+                                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                        <h5 class="font-semibold text-gray-200 mb-1">CreateDefaultConfig()</h5>
+                                        <p class="text-gray-400 text-sm mb-1"><strong>Purpose:</strong> Creates a default configuration file in the system config directory</p>
+                                        <p class="text-gray-400 text-sm mb-1"><strong>Why unused:</strong> Administrative function, not part of normal runtime loading</p>
+                                        <p class="text-gray-400 text-sm"><strong>When used:</strong> During setup/installation or when initializing a fresh system</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                      `,
+                    updated: "2026/02/10",
+                    author: "A.M.Hamidipour",
+                    color: "purple",
+                    gradient: "from-purple-500 to-indigo-600",
+                },
+                {
+                    id: 3,
+                    title: "internal/logger/logger.go",
+                    subtitle: "Structured Logging System Flow",
+                    category: "Logging",
+                    mermaidCode: `
+                    flowchart TD
+                        Start([Logger Creation]) --> InitConfig[Initialize Config]
+
+                        InitConfig --> ValidatePath{File Output?}
+
+                        ValidatePath -->|Yes| CheckFilePath{File Path Empty?}
+                        ValidatePath -->|No| CreateWriter[Create Writer]
+
+                        CheckFilePath -->|Yes| SetDefaultPath[Set Default Log Path]
+                        CheckFilePath -->|No| CreateWriter
+
+                        SetDefaultPath --> CreateWriter
+
+                        CreateWriter --> ParseLevel[Parse Log Level]
+
+                        ParseLevel --> SetupLogger[Setup Logger Instance]
+
+                        SetupLogger --> AsyncCheck{Async Enabled?}
+
+                        AsyncCheck -->|Yes| StartAsync[Start Async Writer Goroutine]
+                        AsyncCheck -->|No| Ready([Logger Ready])
+
+                        subgraph AsyncWriter [Async Writer Goroutine]
+                            direction TB
+                            AW1[Wait for Messages] --> AW2{Message or Quit?}
+                            AW2 -->|Message| AW3[Process Message]
+                            AW2 -->|Quit Signal| AW4[Drain Buffer & Exit]
+                            AW3 --> AW1
+                            AW4 --> Done[Goroutine Exit]
+                        end
+
+                        StartAsync --> Ready
+                        StartAsync --> AsyncWriter
+
+                        subgraph LogFlow [Log Message Flow]
+                            direction TB
+                            L1[Debug/Info/Warn/Error/Fatal] --> L2{Level Filter}
+                            L2 -->|Below Threshold| Drop[Message Dropped]
+                            L2 -->|Meets Threshold| Format[Format Message]
+                            Format --> AsyncCheck2{Async Mode?}
+                            AsyncCheck2 -->|Yes| Buffer[Queue in Buffer]
+                            AsyncCheck2 -->|No| SyncLog[Synchronous Log]
+                            Buffer --> BufferFull{Buffer Full?}
+                            BufferFull -->|Yes| Fallback[Fallback to Sync]
+                            BufferFull -->|No| Processed[Message Queued]
+                            Fallback --> SyncLog
+                            SyncLog --> FormatCheck{Format Type?}
+                            FormatCheck -->|JSON| JSONOutput[Generate JSON Log]
+                            FormatCheck -->|Text| TextOutput[Generate Text Log]
+                            JSONOutput --> Write[Write to Output]
+                            TextOutput --> Write
+                        end
+
+                        Ready --> LogFlow
+
+                        %% Styling
+                        classDef process fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#e2e8f0
+                        classDef decision fill:#334155,stroke:#f59e0b,stroke-width:2px,color:#e2e8f0
+                        classDef terminator fill:#0f172a,stroke:#34d399,stroke-width:2px,color:#e2e8f0
+
+
+                        class Start,Ready terminator
+                        class ValidatePath,CheckFilePath,AsyncCheck,AsyncCheck2,BufferFull,FormatCheck decision
+                        class InitConfig,CreateWriter,ParseLevel,SetupLogger,StartAsync,Format,SyncLog,JSONOutput,TextOutput,Write process
+
+                        `,
+                    description: `
+                        <div class="space-y-4">
+                            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                                <p class="text-gray-300">
+                                    <strong>StdLogger:</strong> A structured logging implementation supporting both JSON and text formats with async capabilities and field-based logging.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 class="font-bold text-gray-200 mb-2">Key Features:</h4>
+                                <ul class="space-y-2 text-gray-400">
+                                    <li class="flex items-start">
+                                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                        <span><strong>Dual Format Support:</strong> JSON for machine parsing and structured text for human readability</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                        <span><strong>Async Logging:</strong> Non-blocking log writing with configurable buffer size</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                        <span><strong>Field-based Context:</strong> Attach structured fields to log messages using WithField/WithFields</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                        <span><strong>Level-based Filtering:</strong> DEBUG, INFO, WARN, ERROR, FATAL levels with runtime adjustment</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                        <span><strong>Graceful Shutdown:</strong> Proper async buffer draining on Close()</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h4 class="font-bold text-gray-200 mb-2">Output Flow Process:</h4>
+                                <ol class="space-y-3 text-gray-400 ml-4 list-decimal">
+                                    <li><strong>Message Creation:</strong> Debug(), Info(), Warn(), Error(), or Fatal() called</li>
+                                    <li><strong>Level Check:</strong> Message filtered if below current log level threshold</li>
+                                    <li><strong>Formatting:</strong> Message and arguments formatted into final string</li>
+                                    <li><strong>Async/Sync Decision:</strong> Based on config, message either queued or processed immediately</li>
+                                    <li><strong>Format Rendering:</strong> JSON or text format generation with all fields</li>
+                                    <li><strong>Output:</strong> Written to configured writer (stdout, stderr, file)</li>
+                                </ol>
+                            </div>
+
+                            <div>
+                                <h4 class="font-bold text-gray-200 mb-2">Public API Methods:</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                        <h5 class="font-semibold text-emerald-400 mb-1">Logging Methods</h5>
+                                        <code class="text-gray-300 text-sm block">Debug(msg string, args ...any)</code>
+                                        <code class="text-gray-300 text-sm block">Info(msg string, args ...any)</code>
+                                        <code class="text-gray-300 text-sm block">Warn(msg string, args ...any)</code>
+                                        <code class="text-gray-300 text-sm block">Error(msg string, args ...any)</code>
+                                        <code class="text-gray-300 text-sm block">Fatal(msg string, args ...any)</code>
+                                    </div>
+                                    <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                        <h5 class="font-semibold text-emerald-400 mb-1">Context & Control</h5>
+                                        <code class="text-gray-300 text-sm block">WithField(key string, value any)</code>
+                                        <code class="text-gray-300 text-sm block">WithFields(fields map[string]any)</code>
+                                        <code class="text-gray-300 text-sm block">SetLevel(level LogLevel)</code>
+                                        <code class="text-gray-300 text-sm block">SetOutput(w io.Writer)</code>
+                                        <code class="text-gray-300 text-sm block">Close() error</code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                <h5 class="font-semibold text-gray-200 mb-2">Configurable Options:</h5>
+                                <div class="grid grid-cols-2 gap-2 text-sm text-gray-400">
+                                    <div>Level: DEBUG/INFO/WARN/ERROR/FATAL</div>
+                                    <div>Format: JSON/Text</div>
+                                    <div>Output: stdout/stderr/file</div>
+                                    <div>Colors: true/false</div>
+                                    <div>Async: true/false</div>
+                                    <div>Buffer Size: 1000 (default)</div>
+                                    <div>Show Caller: true/false</div>
+                                    <div>Timestamp Format: customizable</div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    updated: "2026/02/10",
+                    author: "A.M.Hamidipour",
+                    color: "emerald",
+                    gradient: "from-emerald-500 to-green-600",
+                },
+            ];
+        </script>
+    </head>
+    <body
+        class="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-darkbg dark:to-gray-900 text-gray-200"
+    >
+        <div class="container mx-auto px-4 py-8 max-w-6xl">
+            <!-- Theme Toggle Button -->
+            <div class="fixed top-4 right-4 z-50">
+                <button
+                    id="themeToggle"
+                    class="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white p-3 rounded-full shadow-lg transition-colors"
+                >
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
+
+            <!-- Header Section -->
+            <header
+                class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg p-8 mb-10 border border-gray-700"
+            >
+                <div class="flex flex-col items-center mb-6">
+                    <div
+                        class="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center mb-4"
+                    >
+                        <i
+                            class="fas fa-project-diagram text-3xl text-primary"
+                        ></i>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-bold text-white">
+                        Application Execution Flow
+                    </h1>
+                    <p class="text-lg text-gray-400 mt-2">
+                        Go Application Architecture & Flow Visualization
+                    </p>
+                </div>
+
+                <!-- Documentation Intro -->
+                <div class="max-w-3xl mx-auto mb-8">
+                    <p class="text-gray-300 text-lg leading-relaxed">
+                        This document serves as a high-level guide to
+                        understanding the application's execution flow. Since Go
+                        (including its goroutine patterns) is new to me, I
+                        created this reference to clarify how the program
+                        operates.
+                    </p>
+                </div>
+
+                <!-- Table of Contents - Collapsible -->
+                <div
+                    class="bg-gray-800/50 dark:bg-darkcard border border-gray-700 rounded-xl p-6 mb-8 max-w-3xl mx-auto shadow-lg"
+                >
+                    <button
+                        id="tocToggle"
+                        class="w-full flex items-center justify-between text-left"
+                    >
+                        <h3
+                            class="text-xl font-bold text-white mb-0 flex items-center"
+                        >
+                            <i class="fas fa-list-ul text-primary mr-3"></i>
+                            Table of Contents
+                            <span
+                                id="diagramCount"
+                                class="ml-3 text-sm text-gray-400"
+                                >(0 diagrams)</span
+                            >
+                        </h3>
+                        <i
+                            id="tocIcon"
+                            class="fas fa-chevron-down text-gray-400 transition-transform"
+                        ></i>
+                    </button>
+                    <div id="tocContent" class="toc-content mt-4 max-h-96">
+                        <div id="tocList" class="space-y-3">
+                            <!-- Dynamic TOC items will be inserted here -->
+                        </div>
+                        <div class="mt-6 text-center">
+                            <button
+                                id="addDiagramBtn"
+                                class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 px-4 py-2 rounded-lg transition-colors"
+                            >
+                                <i class="fas fa-plus mr-2"></i>Add New Diagram
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warning Section -->
+                <div
+                    class="bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-lg mb-6 max-w-3xl mx-auto border border-yellow-900/30"
+                >
+                    <div class="flex items-start">
+                        <div
+                            class="flex-shrink-0 p-2 bg-yellow-900/30 rounded-lg mr-4"
+                        >
+                            <i
+                                class="fas fa-exclamation-triangle text-yellow-500 text-xl"
+                            ></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-yellow-200 mb-3">
+                                Important Notes
+                            </h3>
+                            <ul class="space-y-3 text-yellow-300">
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-info-circle mt-1 mr-2 text-yellow-500"
+                                    ></i>
+                                    <span
+                                        ><strong
+                                            >This is a learning aid only</strong
+                                        >
+                                        – The actual code is the single source
+                                        of truth. Always verify behavior by
+                                        reviewing the source.</span
+                                    >
+                                </li>
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-robot mt-1 mr-2 text-yellow-500"
+                                    ></i>
+                                    <span
+                                        ><strong
+                                            >Many parts are AI-generated</strong
+                                        >
+                                        – Given my limited experience with Go,
+                                        portions may contain errors or
+                                        misunderstandings. I chose this language
+                                        specifically to learn it.</span
+                                    >
+                                </li>
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-exclamation-circle mt-1 mr-2 text-yellow-500"
+                                    ></i>
+                                    <span
+                                        ><strong>Not production-ready</strong>
+                                        – This application was built for
+                                        educational purposes. If you plan to use
+                                        it in any serious or production context,
+                                        proceed with
+                                        <strong>extreme caution</strong> and at
+                                        <strong>your own risk</strong>.</span
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purpose Section -->
+                <div
+                    class="bg-blue-900/20 border-l-4 border-blue-500 p-6 rounded-lg mb-6 max-w-3xl mx-auto border border-blue-900/30"
+                >
+                    <div class="flex items-start">
+                        <div
+                            class="flex-shrink-0 p-2 bg-blue-900/30 rounded-lg mr-4"
+                        >
+                            <i
+                                class="fas fa-bullseye text-blue-400 text-xl"
+                            ></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-blue-200 mb-3">
+                                Purpose
+                            </h3>
+                            <ul class="space-y-2 text-blue-300">
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-check-circle mt-1 mr-2 text-blue-400"
+                                    ></i>
+                                    <span
+                                        >Provide a clear mental model of the
+                                        program's control flow</span
+                                    >
+                                </li>
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-check-circle mt-1 mr-2 text-blue-400"
+                                    ></i>
+                                    <span
+                                        >Document goroutine interactions and
+                                        concurrency patterns</span
+                                    >
+                                </li>
+                                <li class="flex items-start">
+                                    <i
+                                        class="fas fa-check-circle mt-1 mr-2 text-blue-400"
+                                    ></i>
+                                    <span
+                                        >Accelerate onboarding for developers
+                                        unfamiliar with the codebase</span
+                                    >
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disclaimer -->
+                <div
+                    class="bg-red-900/20 border border-red-900/30 rounded-lg p-5 max-w-3xl mx-auto"
+                >
+                    <div class="flex items-center justify-center">
+                        <i
+                            class="fas fa-info-circle text-red-400 mr-3 text-xl"
+                        ></i>
+                        <p class="text-red-300 italic">
+                            I'll try to keep this updated, but it may drift from
+                            the actual implementation over time.
+                            <strong>When in doubt, read the code.</strong>
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Back to Top Button -->
+            <div class="sticky top-20 z-10 mb-6 flex justify-end">
+                <a
+                    href="#top"
+                    class="bg-primary hover:bg-blue-600 text-white p-3 rounded-full shadow-lg transition-colors"
+                >
+                    <i class="fas fa-arrow-up"></i>
+                </a>
+            </div>
+
+            <!-- Diagrams Container - Single Column -->
+            <div id="diagramsContainer" class="space-y-8 mb-12">
+                <!-- Diagrams will be dynamically loaded here -->
+            </div>
+
+            <!-- Footer -->
+            <footer
+                class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg p-8 border border-gray-700"
+            >
+                <div class="text-center">
+                    <h3 class="text-2xl font-bold text-white mb-4">
+                        Technical Documentation
+                    </h3>
+                    <p class="text-gray-400 max-w-2xl mx-auto mb-8">
+                        This visualization is part of a learning project to
+                        understand Go application architecture and concurrency
+                        patterns.
+                    </p>
+
+                    <div
+                        class="flex flex-wrap justify-center gap-4 mb-8 max-w-3xl mx-auto"
+                    >
+                        <div
+                            class="bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-full flex items-center border border-gray-600 transition-colors"
+                        >
+                            <i class="fab fa-golang text-primary mr-2"></i>
+                            <span class="text-gray-300">Go Language</span>
+                        </div>
+                        <div
+                            class="bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-full flex items-center border border-gray-600 transition-colors"
+                        >
+                            <i class="fas fa-code text-primary mr-2"></i>
+                            <span class="text-gray-300">Learning Project</span>
+                        </div>
+                        <div
+                            class="bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-full flex items-center border border-gray-600 transition-colors"
+                        >
+                            <i
+                                class="fas fa-exclamation-triangle text-primary mr-2"
+                            ></i>
+                            <span class="text-gray-300">Non-Production</span>
+                        </div>
+                        <div
+                            class="bg-gray-700/50 hover:bg-gray-700 px-4 py-2 rounded-full flex items-center border border-gray-600 transition-colors"
+                        >
+                            <i
+                                class="fas fa-user-graduate text-primary mr-2"
+                            ></i>
+                            <span class="text-gray-300"
+                                >Educational Purpose</span
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        class="border-t border-gray-700 pt-6 text-gray-500 text-sm"
+                    >
+                        <p class="italic">
+                            Remember: This documentation is a learning tool.
+                            Always verify against actual source code.
+                        </p>
+                        <p class="mt-2 text-gray-400">
+                            Diagrams: <span id="liveDiagramCount">0</span> |
+                            Last Updated: <span id="lastUpdated">Just now</span>
+                        </p>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Mermaid JS -->
+        <script type="module">
+            import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: document.documentElement.classList.contains("dark")
+                    ? "dark"
+                    : "base",
+                themeVariables: {
+                    primaryColor: "#0f172a",
+                    primaryTextColor: "#e2e8f0",
+                    primaryBorderColor: "#475569",
+                    lineColor: "#64748b",
+                    secondaryColor: "#1e293b",
+                    tertiaryColor: "#334155",
+                },
+            });
+        </script>
+
+        <!-- Application Data and Logic -->
+        <script>
+            // Color mapping for TOC items
+            const colorMap = {
+                blue: "bg-blue-900/30 text-blue-300 hover:bg-blue-900/50",
+                purple: "bg-purple-900/30 text-purple-300 hover:bg-purple-900/50",
+                emerald:
+                    "bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50",
+                amber: "bg-amber-900/30 text-amber-300 hover:bg-amber-900/50",
+            };
+
+            // Initialize application
+            document.addEventListener("DOMContentLoaded", function () {
+                // Set dark mode by default
+                document.documentElement.classList.add("dark");
+
+                // Render all diagrams
+                renderDiagrams();
+                renderTOC();
+                updateCounters();
+
+                // Initialize event listeners
+                initEventListeners();
+
+                // Initialize Mermaid for existing diagrams
+                initMermaid();
+            });
+
+            // Render diagrams
+            function renderDiagrams() {
+                const container = document.getElementById("diagramsContainer");
+                container.innerHTML = "";
+
+                diagrams.forEach((diagram) => {
+                    const diagramHTML = createDiagramCard(diagram);
+                    container.innerHTML += diagramHTML;
+                });
+            }
+
+            // Create diagram card HTML
+            function createDiagramCard(diagram) {
+                return `
+                <div id="diagram-${diagram.id}" class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg overflow-hidden card-hover animate-fade-in border border-gray-700">
+                    <div class="bg-gradient-to-r ${diagram.gradient} text-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                                    <span class="font-bold">${diagram.id}</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold">
+                                        <i class="fas fa-${getIconForCategory(diagram.category)} mr-2"></i>
+                                        ${diagram.title}
+                                    </h2>
+                                    <p class="text-white/80 text-sm mt-1">${diagram.subtitle}</p>
+                                </div>
+                            </div>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-sm">
+                                ${diagram.category}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="bg-gray-900/50 p-4 rounded-xl border-l-4 border-${diagram.color}-500 overflow-x-auto">
+                            <div class="mermaid" data-mermaid="${btoa(diagram.mermaidCode)}">
+                                ${diagram.mermaidCode}
+                            </div>
+                        </div>
+
+                        <div class="mt-6 bg-gray-800/50 p-5 rounded-xl border border-gray-700">
+                            <h3 class="text-lg font-bold text-gray-200 mb-3">
+                                <i class="fas fa-info-circle text-${diagram.color}-400 mr-2"></i>
+                                Description
+                            </h3>
+                            ${diagram.description}
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-900/50 px-6 py-4 border-t border-gray-700">
+                        <div class="flex justify-between items-center text-sm text-gray-400">
+                            <div class="flex items-center">
+                                <i class="fas fa-clock mr-2"></i>
+                                <span>Updated: ${diagram.updated}</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-code mr-2"></i>
+                                <span>${diagram.author}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="editDiagram(${diagram.id})" class="text-gray-400 hover:text-blue-400">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteDiagram(${diagram.id})" class="text-gray-400 hover:text-red-400">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }
+
+            // Render TOC
+            function renderTOC() {
+                const tocList = document.getElementById("tocList");
+                tocList.innerHTML = "";
+
+                diagrams.forEach((diagram) => {
+                    const tocItem = `
+                    <a href="#diagram-${diagram.id}"
+                       class="toc-link flex items-center p-3 rounded-lg border border-gray-700 transition-colors ${colorMap[diagram.color]}">
+                        <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center mr-3 font-bold">
+                            ${diagram.id}
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-200">${diagram.category}</h4>
+                            <p class="text-sm text-gray-400">${diagram.title}</p>
+                        </div>
+                    </a>
+                    `;
+                    tocList.innerHTML += tocItem;
+                });
+            }
+
+            // Initialize event listeners
+            function initEventListeners() {
+                // Theme toggle
+                document
+                    .getElementById("themeToggle")
+                    .addEventListener("click", toggleTheme);
+
+                // TOC toggle
+                document
+                    .getElementById("tocToggle")
+                    .addEventListener("click", toggleTOC);
+
+                // Add diagram button
+                document
+                    .getElementById("addDiagramBtn")
+                    .addEventListener("click", showAddDiagramModal);
+
+                // Smooth scroll for TOC links
+                document.addEventListener("click", function (e) {
+                    if (e.target.closest(".toc-link")) {
+                        e.preventDefault();
+                        const href = e.target
+                            .closest(".toc-link")
+                            .getAttribute("href");
+                        const target = document.querySelector(href);
+                        if (target) {
+                            target.scrollIntoView({ behavior: "smooth" });
+                        }
+                    }
+                });
+            }
+
+            // Toggle theme
+            function toggleTheme() {
+                const html = document.documentElement;
+                const icon = document.getElementById("themeIcon");
+
+                if (html.classList.contains("dark")) {
+                    html.classList.remove("dark");
+                    icon.classList.remove("fa-moon");
+                    icon.classList.add("fa-sun");
+                    mermaid.initialize({
+                        ...mermaid.mermaidAPI.getConfig(),
+                        theme: "base",
+                    });
+                } else {
+                    html.classList.add("dark");
+                    icon.classList.remove("fa-sun");
+                    icon.classList.add("fa-moon");
+                    mermaid.initialize({
+                        ...mermaid.mermaidAPI.getConfig(),
+                        theme: "dark",
+                    });
+                }
+            }
+
+            // Toggle TOC
+            function toggleTOC() {
+                const content = document.getElementById("tocContent");
+                const icon = document.getElementById("tocIcon");
+
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                    icon.style.transform = "rotate(0deg)";
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    icon.style.transform = "rotate(180deg)";
+                }
+            }
+
+            // Update counters
+            function updateCounters() {
+                document.getElementById("diagramCount").textContent =
+                    `(${diagrams.length} diagrams)`;
+                document.getElementById("liveDiagramCount").textContent =
+                    diagrams.length;
+                document.getElementById("lastUpdated").textContent =
+                    new Date().toLocaleDateString();
+            }
+
+            // Get icon for category
+            function getIconForCategory(category) {
+                const icons = {
+                    "Entry Point": "play-circle",
+                    Configuration: "exchange-alt",
+                    Concurrency: "tasks",
+                    "Data Pipeline": "database",
+                };
+                return icons[category] || "diagram-project";
+            }
+
+            // Add new diagram
+            function showAddDiagramModal() {
+                const newId = diagrams.length + 1;
+                const newDiagram = {
+                    id: newId,
+                    title: "New Diagram " + newId,
+                    subtitle: "Add description here",
+                    category: "Configuration",
+                    mermaidCode: `flowchart TD
+    Start([Start Here]) --> Process[Process Step]
+    Process --> Decision{Decision?}
+    Decision -->|Yes| Success[Success]
+    Decision -->|No| Error[Error]
+    Success --> End([End])
+    Error --> End`,
+                    description: `<div class="space-y-4">
+    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <p class="text-gray-300">Edit this description to add details about your diagram.</p>
+    </div>
+</div>`,
+                    updated: new Date().toLocaleDateString(),
+                    author: "Your Name",
+                    color: "blue",
+                    gradient: "from-blue-500 to-cyan-600",
+                };
+
+                diagrams.push(newDiagram);
+                renderDiagrams();
+                renderTOC();
+                updateCounters();
+
+                // Scroll to new diagram
+                setTimeout(() => {
+                    document
+                        .getElementById(`diagram-${newId}`)
+                        .scrollIntoView({ behavior: "smooth" });
+                }, 100);
+            }
+
+            // Edit diagram (simplified - in a real app, you'd have a proper modal)
+            function editDiagram(id) {
+                const diagram = diagrams.find((d) => d.id === id);
+                if (diagram) {
+                    const newTitle = prompt("Enter new title:", diagram.title);
+                    if (newTitle) {
+                        diagram.title = newTitle;
+                        renderDiagrams();
+                        renderTOC();
+                        updateCounters();
+                    }
+                }
+            }
+
+            // Delete diagram
+            function deleteDiagram(id) {
+                if (confirm("Are you sure you want to delete this diagram?")) {
+                    diagrams = diagrams.filter((d) => d.id !== id);
+                    // Reindex diagrams
+                    diagrams.forEach((d, index) => (d.id = index + 1));
+                    renderDiagrams();
+                    renderTOC();
+                    updateCounters();
+                    initMermaid();
+                }
+            }
+
+            // Make functions available globally
+            window.editDiagram = editDiagram;
+            window.deleteDiagram = deleteDiagram;
+        </script>
+        <!-- Mermaid JS -->
+        <script type="module">
+            import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: "dark",
+                themeVariables: {
+                    primaryColor: "#e1f5fe",
+                    primaryTextColor: "#01579b",
+                    primaryBorderColor: "#01579b",
+                    lineColor: "#333",
+                    secondaryColor: "#fff3e0",
+                    tertiaryColor: "#f3e5f5",
+                },
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: "cardinal",
+                    maxWidth: "100%",
+                },
+            });
+        </script>
+    </body>
+</html>
