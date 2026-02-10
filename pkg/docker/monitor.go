@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/amir-mohammad-HP/crontask/internal/types"
+	"github.com/amir-mohammad-HP/crontask/pkg/logger"
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	dockerEvents "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	dockerClient "github.com/docker/docker/client"
-	"go.uber.org/zap"
 )
 
 // Event types for communication
@@ -33,13 +34,13 @@ type ContainerInfo struct {
 
 type DockerMonitor struct {
 	client     *dockerClient.Client
-	logger     *zap.Logger
+	logger     *logger.StdLogger
 	config     *types.DockerConfig
 	eventsChan chan ContainerEvent
 	stopChan   chan struct{}
 }
 
-func NewMonitor(config *types.DockerConfig, logger *zap.Logger) (*DockerMonitor, error) {
+func NewMonitor(config *types.DockerConfig, logger *logger.StdLogger) (*DockerMonitor, error) {
 	var cli *dockerClient.Client
 	var err error
 
@@ -50,7 +51,7 @@ func NewMonitor(config *types.DockerConfig, logger *zap.Logger) (*DockerMonitor,
 		)
 	} else {
 		// Use platform-specific default socket
-		socketPath := getDefaultSocketPath()
+		socketPath := getDefaultSocketPath(logger)
 		cli, err = dockerClient.NewClientWithOpts(
 			dockerClient.WithHost(socketPath),
 			dockerClient.WithAPIVersionNegotiation(),
@@ -58,19 +59,23 @@ func NewMonitor(config *types.DockerConfig, logger *zap.Logger) (*DockerMonitor,
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create docker client: %w", err)
+		error := fmt.Errorf("failed to create docker client: %w", err)
+		logger.Error("%s", error.Error())
+		return nil, error
 	}
 
 	// Test connection
 	_, err = cli.Ping(context.Background())
 	if err != nil {
-		logger.Warn("Docker connection test failed", zap.Error(err))
+		logger.Warn("Docker connection test failed %s", err.Error())
 		logger.Info("Trying alternative Docker socket paths...")
 
 		// Try alternative paths
-		cli, err = tryAlternativeSocketPaths()
+		cli, err = tryAlternativeSocketPaths(logger)
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect to Docker: %w", err)
+			error := fmt.Errorf("failed to connect to Docker: %w", err)
+			logger.Error("%s", error.Error())
+			return nil, error
 		}
 	}
 
@@ -85,11 +90,11 @@ func NewMonitor(config *types.DockerConfig, logger *zap.Logger) (*DockerMonitor,
 
 // Start monitoring Docker events
 func (dm *DockerMonitor) Start(ctx context.Context) error {
-	dm.logger.Info("Starting Docker monitor")
+	dm.logger.Debug("Starting Docker monitor")
 
 	// Initial scan of existing containers
 	if err := dm.scanExistingContainers(); err != nil {
-		dm.logger.Error("Failed to scan existing containers", zap.Error(err))
+		dm.logger.Error("Failed to scan existing containers %s", err.Error())
 	}
 
 	// Start event monitoring
@@ -113,7 +118,7 @@ func (dm *DockerMonitor) GetEvents() <-chan ContainerEvent {
 
 // Scan all existing containers
 func (dm *DockerMonitor) scanExistingContainers() error {
-	containers, err := dm.client.ContainerList(context.Background(), dockerTypes.ContainerListOptions{
+	containers, err := dm.client.ContainerList(context.Background(), container.ListOptions{
 		All: true,
 	})
 	if err != nil {
@@ -123,9 +128,9 @@ func (dm *DockerMonitor) scanExistingContainers() error {
 	for _, c := range containers {
 		containerInfo, err := dm.getContainerInfo(c.ID)
 		if err != nil {
-			dm.logger.Error("Failed to get container info",
-				zap.String("container", c.ID[:12]),
-				zap.Error(err))
+			dm.logger.Error("Failed to get container info | %s: %s , %s",
+				"container", c.ID[:12],
+				err.Error())
 			continue
 		}
 
@@ -159,13 +164,13 @@ func (dm *DockerMonitor) monitorEvents(ctx context.Context) {
 			dm.handleEvent(event)
 		case err := <-errs:
 			if err != nil {
-				dm.logger.Error("Docker events error", zap.Error(err))
+				dm.logger.Error("Docker events error %s", err.Error())
 			}
 		case <-ctx.Done():
-			dm.logger.Info("Docker monitor context done")
+			dm.logger.Debug("Docker monitor context done")
 			return
 		case <-dm.stopChan:
-			dm.logger.Info("Docker monitor stopped")
+			dm.logger.Debug("Docker monitor stopped")
 			return
 		}
 	}
@@ -178,10 +183,10 @@ func (dm *DockerMonitor) handleEvent(event dockerEvents.Message) {
 
 	containerInfo, err := dm.getContainerInfo(event.Actor.ID)
 	if err != nil {
-		dm.logger.Error("Failed to get container info after event",
-			zap.String("action", string(event.Action)), // Convert to string
-			zap.String("container", event.Actor.ID[:12]),
-			zap.Error(err))
+		dm.logger.Error("Failed to get container info after event | %s: %s, %s: %s, %s",
+			"action", string(event.Action), // Convert to string
+			"container", event.Actor.ID[:12],
+			err.Error())
 		return
 	}
 
@@ -207,10 +212,10 @@ func (dm *DockerMonitor) getContainerInfo(containerID string) (*ContainerInfo, e
 			// Try parsing without nanoseconds if the first attempt fails
 			parsedTime, err = time.Parse(time.RFC3339, containerJSON.Created)
 			if err != nil {
-				dm.logger.Warn("Failed to parse container creation time",
-					zap.String("container", containerID[:12]),
-					zap.String("created", containerJSON.Created),
-					zap.Error(err))
+				dm.logger.Warn("Failed to parse container creation time | %s: %s, %s: %s, %s",
+					"container", containerID[:12],
+					"created", containerJSON.Created,
+					err)
 				createdTime = time.Now() // Fallback to current time
 			} else {
 				createdTime = parsedTime
@@ -238,9 +243,9 @@ func (dm *DockerMonitor) ExtractCronJobs(container *ContainerInfo) []types.CronJ
 		if strings.HasPrefix(labelKey, dm.config.LabelPrefix) {
 			cronExpr, err := dm.parseCronExpression(labelKey)
 			if err != nil {
-				dm.logger.Warn("Failed to parse cron expression",
-					zap.String("label", labelKey),
-					zap.Error(err))
+				dm.logger.Warn("Failed to parse cron expression | %s: %s, %s",
+					"label", labelKey,
+					err.Error())
 				continue
 			}
 
@@ -308,7 +313,9 @@ func (dm *DockerMonitor) ExecuteTask(containerID string, task string) (string, e
 	buf := make([]byte, 4096)
 	n, err := resp.Reader.Read(buf)
 	if err != nil && err.Error() != "EOF" {
-		return "", fmt.Errorf("failed to read output: %w", err)
+		error := fmt.Errorf("failed to read output: %w", err)
+		dm.logger.Error("%s", error.Error())
+		return "", error
 	}
 
 	output := string(buf[:n])
@@ -328,7 +335,7 @@ func (dm *DockerMonitor) ExecuteTask(containerID string, task string) (string, e
 
 // Get all running containers with cron labels
 func (dm *DockerMonitor) GetContainersWithCronJobs() ([]ContainerInfo, error) {
-	containers, err := dm.client.ContainerList(context.Background(), dockerTypes.ContainerListOptions{
+	containers, err := dm.client.ContainerList(context.Background(), container.ListOptions{
 		All: false, // Only running containers
 	})
 	if err != nil {

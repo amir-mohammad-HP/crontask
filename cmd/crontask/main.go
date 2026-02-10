@@ -36,14 +36,6 @@ func main() {
 	logger.Info("environment: %s", cfg.Environment)
 	logger.Info("loglevel: %s", cfg.LogLevel)
 
-	data := map[string]interface{}{
-		"name":    "John",
-		"age":     30,
-		"hobbies": []string{"reading", "coding"},
-	}
-
-	logger.Info("message", data)
-
 	// Create application instance with dependencies
 	app := app.New(cfg, logger)
 

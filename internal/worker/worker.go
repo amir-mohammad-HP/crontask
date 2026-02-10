@@ -11,7 +11,6 @@ import (
 	"github.com/amir-mohammad-HP/crontask/pkg/docker"
 	"github.com/amir-mohammad-HP/crontask/pkg/logger"
 	"github.com/robfig/cron/v3"
-	"go.uber.org/zap"
 )
 
 type Worker struct {
@@ -24,6 +23,7 @@ type Worker struct {
 	dockerMon   *docker.DockerMonitor
 }
 
+// Worker constructor 😑 why the hell you guys make this lang unreadable
 func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 	w := &Worker{
 		config:   cfg,
@@ -36,10 +36,9 @@ func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 
 	// Initialize Docker monitor if enabled
 	if cfg.Docker.Enabled {
-		zapLogger := zap.NewExample() // Convert your logger or create a new one
-		monitor, err := docker.NewMonitor(&cfg.Docker, zapLogger)
+		monitor, err := docker.NewMonitor(&cfg.Docker, logger)
 		if err != nil {
-			logger.Error("Failed to create Docker monitor", err)
+			logger.Error("Failed to create Docker monitor | %s", err.Error())
 		} else {
 			w.dockerMon = monitor
 			w.jobRegistry = job.NewJobRegistry(monitor)
@@ -50,7 +49,7 @@ func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 }
 
 func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	w.logger.Info("Starting worker")
+	w.logger.Debug("Starting worker")
 
 	wg.Add(1)
 	go w.run(ctx)
@@ -60,11 +59,12 @@ func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
 
 func (w *Worker) run(ctx context.Context) {
 	defer w.logger.Info("Worker stopped")
+	defer w.cleanup()
 
 	// Start Docker monitor if enabled
 	if w.dockerMon != nil {
 		if err := w.dockerMon.Start(ctx); err != nil {
-			w.logger.Error("Failed to start Docker monitor", err)
+			w.logger.Error("Failed to start Docker monitor, %s", err.Error())
 		} else {
 			go w.handleDockerEvents(ctx)
 		}
@@ -72,16 +72,14 @@ func (w *Worker) run(ctx context.Context) {
 
 	// Start cron scheduler
 	w.cron.Start()
-	w.logger.Info("Worker cron scheduler started")
+	w.logger.Debug("Worker cron scheduler started")
 
 	// Wait for shutdown
 	select {
 	case <-ctx.Done():
-		w.logger.Info("Worker received context cancellation")
-		w.cleanup()
+		w.logger.Debug("Worker received context cancellation")
 	case <-w.shutdown:
-		w.logger.Info("Worker received shutdown signal")
-		w.cleanup()
+		w.logger.Debug("Worker received shutdown signal")
 	}
 }
 
@@ -106,10 +104,12 @@ func (w *Worker) handleDockerEvents(ctx context.Context) {
 func (w *Worker) processDockerEvent(event docker.ContainerEvent) {
 	switch event.Action {
 	case "scan", "create", "start", "update":
+		w.logger.Debug("Docker change state : %s", event.Action)
 		if event.Container.State == "running" {
 			w.registerContainerJobs(event.Container)
 		}
 	case "die", "destroy":
+		w.logger.Debug("Docker death state : %s", event.Action)
 		w.unregisterContainerJobs(event.ContainerID)
 	}
 }
@@ -141,14 +141,14 @@ func (w *Worker) registerContainerJobs(container *docker.ContainerInfo) {
 			})
 
 			if err != nil {
-				w.logger.Error("Failed to schedule job",
-					err,
+				w.logger.Error("Failed to schedule job | %s, %s: %s , %s: %s",
+					err.Error(),
 					"container", container.ID[:12],
 					"cron", cronJob.CronExpr)
 				w.jobRegistry.RemoveJob(dockerJob.Name())
 			} else {
 				dockerJob.SetCronEntryID(entryID)
-				w.logger.Info("Job registered",
+				w.logger.Info("Job registered | %s: %s, %s: %s, %s: %s, %s: %s",
 					"container", container.ID[:12],
 					"name", container.Name,
 					"cron", cronJob.CronExpr,
@@ -166,25 +166,25 @@ func (w *Worker) unregisterContainerJobs(containerID string) {
 	removedJobs := w.jobRegistry.RemoveJobsByContainer(containerID)
 	for _, jobID := range removedJobs {
 		// Note: cron entries are automatically removed when container stops
-		w.logger.Info("Job unregistered",
+		w.logger.Info("Job unregistered | %s: %s, %s: %s",
 			"container", containerID[:12],
 			"job", jobID)
 	}
 }
 
 func (w *Worker) executeJob(job *job.DockerJob) {
-	w.logger.Info("Executing job",
+	w.logger.Info("Executing job | %s: %s,  %s: %s,  %s: %s",
 		"job", job.Name(),
 		"container", job.GetContainerID()[:12],
 		"time", time.Now().Format("2006-01-02 15:04:05"))
 
 	if err := job.Execute(); err != nil {
-		w.logger.Error("Job execution failed",
-			err,
+		w.logger.Error("Job execution failed | %s, %s: %s, %s: %s",
+			err.Error(),
 			"job", job.Name(),
 			"container", job.GetContainerID()[:12])
 	} else {
-		w.logger.Info("Job executed successfully",
+		w.logger.Info("Job executed successfully | %s: %s, %s: %s",
 			"job", job.Name(),
 			"container", job.GetContainerID()[:12])
 	}

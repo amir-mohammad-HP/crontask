@@ -102,19 +102,50 @@ func getConfigPaths() ([]string, error) {
 	return paths, nil
 }
 
+// SetDefaults sets all default configuration values in Viper
+func SetDefaults() {
+	// Application defaults
+	viper.SetDefault("app_name", defaultConfig.AppName)
+	viper.SetDefault("environment", defaultConfig.Environment)
+	viper.SetDefault("log_level", defaultConfig.LogLevel)
+
+	// Worker configuration defaults
+	viper.SetDefault("worker.interval", defaultConfig.Worker.Interval)
+	viper.SetDefault("worker.max_jobs", defaultConfig.Worker.MaxJobs)
+	viper.SetDefault("worker.retry_attempts", defaultConfig.Worker.RetryAttempts)
+
+	// Docker configuration defaults
+	viper.SetDefault("docker.enabled", defaultConfig.Docker.Enabled)
+	viper.SetDefault("docker.socket_path", defaultConfig.Docker.SocketPath)
+	viper.SetDefault("docker.poll_interval", defaultConfig.Docker.PollInterval)
+	viper.SetDefault("docker.label_prefix", defaultConfig.Docker.LabelPrefix)
+
+	// Shutdown configuration defaults
+	viper.SetDefault("shutdown.timeout", defaultConfig.Shutdown.Timeout)
+
+	// Logger configuration defaults
+	viper.SetDefault("logger.level", defaultConfig.Logger.Level)
+	viper.SetDefault("logger.format", defaultConfig.Logger.Format)
+	viper.SetDefault("logger.output", defaultConfig.Logger.Output)
+	viper.SetDefault("logger.file_path", defaultConfig.Logger.FilePath)
+	viper.SetDefault("logger.max_size", defaultConfig.Logger.MaxSize)
+	viper.SetDefault("logger.max_backups", defaultConfig.Logger.MaxBackups)
+	viper.SetDefault("logger.max_age", defaultConfig.Logger.MaxAge)
+	viper.SetDefault("logger.compress", defaultConfig.Logger.Compress)
+	viper.SetDefault("logger.timestamp_format", defaultConfig.Logger.TimestampFormat)
+	viper.SetDefault("logger.show_caller", defaultConfig.Logger.ShowCaller)
+	viper.SetDefault("logger.colors", defaultConfig.Logger.Colors)
+	viper.SetDefault("logger.async", defaultConfig.Logger.Async)
+	viper.SetDefault("logger.buffer_size", defaultConfig.Logger.BufferSize)
+}
+
 // Load loads configuration from file, environment variables, or defaults
 func Load() (*types.Config, error) {
 	viper.SetConfigName("crontaskd") // Name of config file (without extension)
 	viper.SetConfigType("yaml")      // REQUIRED if the config file does not have the extension in the name
 
-	// Set default values
-	viper.SetDefault("app_name", defaultConfig.AppName)
-	viper.SetDefault("environment", defaultConfig.Environment)
-	viper.SetDefault("log_level", defaultConfig.LogLevel)
-	viper.SetDefault("worker.interval", defaultConfig.Worker.Interval)
-	viper.SetDefault("worker.max_jobs", defaultConfig.Worker.MaxJobs)
-	viper.SetDefault("worker.retry_attempts", defaultConfig.Worker.RetryAttempts)
-	viper.SetDefault("shutdown.timeout", defaultConfig.Shutdown.Timeout)
+	// Set all default values
+	SetDefaults()
 
 	// Add configuration paths
 	configPaths, err := getConfigPaths()
