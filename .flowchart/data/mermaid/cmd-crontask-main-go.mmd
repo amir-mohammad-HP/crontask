@@ -1,0 +1,30 @@
+flowchart TD
+    Start([Program Start]) --> LoadConfig[Load Configuration]
+    LoadConfig --> ConfigSuccess{Config Loaded?}
+    ConfigSuccess -->|Success| LogConfig[Log Config Location]
+    ConfigSuccess -->|Error| ConfigError[Log Error & Exit]
+    LogConfig --> InitLogger[Initialize Logger]
+    InitLogger --> LogEnv[Log Environment Info]
+    LogEnv --> CreateApp[Create Application]
+    CreateApp --> RunApp[Run Application]
+    RunApp --> AppStatus{Application Status}
+    AppStatus -->|Running| TaskLoop[Execute Scheduled Tasks]
+    AppStatus -->|Error| AppError[Log Error & Exit]
+    TaskLoop --> Continue{Continue?}
+    Continue -->|Yes| TaskLoop
+    Continue -->|No| GracefulExit[Graceful Shutdown]
+    GracefulExit --> ExitSuccess([Exit Success 0])
+    ConfigError --> ExitError1([Exit Error 1])
+    AppError --> ExitError2([Exit Error 1])
+
+    %% Styling
+    classDef process fill:#1e293b,stroke:#3498db,stroke-width:2px,color:#e2e8f0
+    classDef decision fill:#334155,stroke:#ffc107,stroke-width:2px,color:#e2e8f0
+    classDef terminator fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
+    classDef error fill:#450a0a,stroke:#dc3545,stroke-width:2px,color:#e2e8f0
+
+    class Start,ExitSuccess terminator
+    class ConfigSuccess,AppStatus,Continue decision
+    class LoadConfig,LogConfig,InitLogger,LogEnv,CreateApp,RunApp process
+    class ConfigError,AppError,GracefulExit error
+    class TaskLoop process

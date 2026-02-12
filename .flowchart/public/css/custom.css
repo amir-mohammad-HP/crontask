@@ -1,0 +1,21 @@
+/* Additional custom styles not covered by Tailwind */
+.mermaid {
+    min-height: 200px;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .bg-gray-800,
+    .bg-darkcard {
+        background-color: white !important;
+        color: black !important;
+    }
+}

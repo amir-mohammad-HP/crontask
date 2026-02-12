@@ -1,0 +1,11 @@
+{
+  "id": 3,
+  "title": "internal/logger/logger.go",
+  "subtitle": "Structured Logging System Flow",
+  "category": "Logging",
+  "description": "<div class=\"space-y-4\"><div class=\"bg-gray-800 p-4 rounded-lg border border-gray-700\"><p class=\"text-gray-300\"><strong>StdLogger:</strong> A structured logging implementation supporting both JSON and text formats with async capabilities and field-based logging.</p></div><div><h4 class=\"font-bold text-gray-200 mb-2\">Key Features:</h4><ul class=\"space-y-2 text-gray-400\"><li class=\"flex items-start\"><span class=\"inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0\"></span><span><strong>Dual Format Support:</strong> JSON for machine parsing and structured text for human readability</span></li><li class=\"flex items-start\"><span class=\"inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0\"></span><span><strong>Async Logging:</strong> Non-blocking log writing with configurable buffer size</span></li><li class=\"flex items-start\"><span class=\"inline-block w-2 h-2 bg-emerald-500 rounded-full mt-1.5 mr-2 flex-shrink-0\"></span><span><strong>Field-based Context:</strong> Attach structured fields to log messages using WithField/WithFields</span></li></ul></div></div>",
+  "updated": "2026/02/10",
+  "author": "A.M.Hamidipour",
+  "color": "emerald",
+  "gradient": "from-emerald-500 to-green-600"
+}

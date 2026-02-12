@@ -1,0 +1,199 @@
+flowchart TD
+    %% ============================================
+    %%  Logger Creation – Entry Points
+    %% ============================================
+    Start([Logger Creation]) --> CreationChoice{Which constructor?}
+    CreationChoice -->|"New([level])"| NC1[DefaultConfig]
+    CreationChoice -->|"NewWithConfig(config)"| NC2[Use Provided Config]
+    CreationChoice -->|NewNullLogger| NullLog[Return NullLogger]
+
+    NC1 --> NC2
+    NC2 --> ValidateOutput{Output type?}
+
+    subgraph NewWithConfig ["NewWithConfig (full initialisation)"]
+        direction TB
+        NWC1[Check Output == 'file'] --> NWC2{FilePath empty?}
+        NWC2 -->|Yes| NWC3[getDefaultLogPath]
+        NWC2 -->|No| NWC4[Keep FilePath]
+        NWC3 --> NWC4
+        NWC4 --> NWC5[createWriter]
+
+        subgraph CreateWriter ["createWriter (switch)"]
+            CW1{config.Output} -->|stdout| CW2[os.Stdout]
+            CW1 -->|stderr| CW3[os.Stderr]
+            CW1 -->|file| CW4[os.OpenFile …]
+            CW1 -->|null| CW5[io.Discard]
+            CW1 -->|default| CW2
+            CW4 --> CW6{Dir creation error?}
+            CW6 -->|Yes| CW2
+            CW6 -->|No| CW4
+        end
+
+        NWC5 --> NWC6[ParseLogLevel]
+        NWC6 --> NWC7[Create StdLogger instance]
+        NWC7 --> NWC8{Async enabled?}
+        NWC8 -->|Yes| NWC9[Init channel, quit, WaitGroup]
+        NWC9 --> NWC10[go asyncWriter]
+        NWC8 -->|No| NWC11[Async off]
+        NWC10 --> NWC12([Logger Ready])
+        NWC11 --> NWC12
+    end
+
+    NullLog --> End([Logger Instance])
+
+    %% ============================================
+    %%  Async Writer Goroutine – Full Lifecycle
+    %% ============================================
+    subgraph AsyncWriter ["Async Writer Goroutine"]
+        direction TB
+        AW1[for-select loop] --> AW2{Channel event}
+        AW2 -->|logMessage| AW3[syncLog]
+        AW2 -->|quit| AW4[Drain remaining messages]
+        AW4 --> AW5[Exit goroutine]
+        AW3 --> AW1
+    end
+
+    NWC10 --> AW1
+
+    %% ============================================
+    %%  Log Message Flow (Debug/Info/Warn/Error/Fatal)
+    %% ===========================================a
+    LoggerReady([Logger Ready]) --> LogCall[Log method called]
+    LogCall --> LogFlow
+
+    subgraph LogFlow ["log(msg, args...)"]
+        direction TB
+        LF1{level >= current?}
+        LF1 -->|No| DROP([Message dropped])
+        LF1 -->|Yes| LF2[fmt.Sprintf if args]
+        LF2 --> LF3[Copy fields from logger]
+        LF3 --> LF4{Async mode?}
+        LF4 -->|Yes| LF5[Select: buffer <- message]
+        LF4 -->|No| LF6[syncLog]
+        LF5 --> LF7{Buffer full?}
+        LF7 -->|Yes| LF6
+        LF7 -->|No| QUEUED([Queued in channel])
+        LF6 --> SyncSub
+    end
+
+    %% ============================================
+    %%  Synchronous Log Writing (syncLog)
+    %% ============================================
+    subgraph SyncSub ["syncLog (synchronous)"]
+        direction TB
+        SY1{Format?} -->|json| SY2[jsonLog]
+        SY1 -->|text| SY3[textLog]
+    end
+
+    SY2 --> JSONsub
+    SY3 --> TEXTsub
+
+    %% ============================================
+    %%  JSON Formatter (jsonLog)
+    %% ============================================
+    subgraph JSONsub ["jsonLog"]
+        direction TB
+        JS1[Build map: timestamp, level, message]
+        JS1 --> JS2{ShowCaller?}
+        JS2 -->|Yes| JS3["runtime.Caller(4)" → file:line]
+        JS2 -->|No| JS4[Skip caller]
+        JS3 --> JS5[Add fields map]
+        JS4 --> JS5
+        JS5 --> JS6[json.Marshal]
+        JS6 --> JS7{Marshal error?}
+        JS7 -->|Yes| JS8[Fallback to textLog]
+        JS7 -->|No| JS9[Write JSON + newline]
+        JS8 --> TEXTsub
+    end
+
+    %% ============================================
+    %%  Text Formatter (textLog)
+    %% ============================================
+    subgraph TEXTsub ["textLog"]
+        direction TB
+        TX1[strings.Builder]
+        TX1 --> TX2[Format timestamp]
+        TX2 --> TX3{Colors enabled & output is stdout/stderr?}
+        TX3 -->|Yes| TX4[colorizeLevel]
+        TX3 -->|No| TX5[Plain level string]
+        TX4 --> TX6[Add padding to level]
+        TX5 --> TX6
+        TX6 --> TX7{ShowCaller?}
+        TX7 -->|Yes| TX8["runtime.Caller(4)" → file:line, padding]
+        TX7 -->|No| TX9[Skip caller]
+        TX8 --> TX10[Sort fields keys]
+        TX9 --> TX10
+        TX10 --> TX11[Format each field]
+        TX11 --> TX12[Append message]
+        TX12 --> TX13[Write with newline]
+    end
+
+    %% ============================================
+    %%  Field Management (WithField / WithFields)
+    %% ============================================
+    subgraph FieldOps ["WithField / WithFields"]
+        direction TB
+        FO1[Lock mutex]
+        FO1 --> FO2[Copy existing fields]
+        FO2 --> FO3["Add new key/value(s)"]
+        FO3 --> FO4[Unlock]
+        FO4 --> FO5[Return new StdLogger with same config, writer, async, level, and new fields]
+    end
+
+    %% ============================================
+    %%  Configuration Changes (SetLevel / SetOutput)
+    %% ============================================
+    subgraph ConfigOps ["SetLevel / SetOutput"]
+        direction TB
+        SL1[Lock mutex]
+        SL1 --> SL2[Update level / writer]
+        SL2 --> SL3[Unlock]
+    end
+
+    %% ============================================
+    %%  Graceful Shutdown (Close)
+    %% ============================================
+    subgraph Shutdown ["Close()"]
+        direction TB
+        CL1{Async enabled?}
+        CL1 -->|Yes| CL2["close(quit)"]
+        CL2 --> CL3[wg.Wait]
+        CL1 -->|No| CL4[Skip async shutdown]
+        CL3 --> CL5{Writer implements io.Closer?}
+        CL4 --> CL5
+        CL5 -->|Yes| CL6["closer.Close()"]
+        CL5 -->|No| CL7[Return nil]
+    end
+
+    %% ============================================
+    %%  NullLogger – No‑op implementation
+    %% ============================================
+    subgraph NullLoggerImpl ["NullLogger"]
+        direction TB
+        NL1[All logging methods: empty body]
+        NL1 --> NL2[WithField / WithFields: return self]
+        NL2 --> NL3[SetLevel / SetOutput: no‑op]
+        NL3 --> NL4[GetLevel: returns INFO]
+    end
+
+    %% ============================================
+    %%  Connections from main flow
+    %% ============================================
+    NWC12 --> LoggerReady
+    QUEUED -.-> AW1
+    JS9 --> WriteOp([Write to output])
+    TX13 --> WriteOp
+    JS8 --> TEXTsub
+
+    %% ============================================
+    %%  Styling (consistent with original)
+    %% ============================================
+    classDef process fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#e2e8f0
+    classDef decision fill:#334155,stroke:#f59e0b,stroke-width:2px,color:#e2e8f0
+    classDef terminator fill:#0f172a,stroke:#34d399,stroke-width:2px,color:#e2e8f0
+    classDef subgraphStyle fill:#0b1a2e,stroke:#4ade80,stroke-width:1px,color:#e2e8f0
+
+    class Start,End,LoggerReady,NullLog,QUEUED,DROP terminator
+    class CreationChoice,ValidateOutput,NWC2,NWC8,NWC6,LF1,LF4,LF7,SY1,JS7,TX3,TX7,CL1,CL5 decision
+    class NC1,NC2,NWC1,NWC3,NWC4,NWC5,NWC7,NWC9,NWC10,NWC11,NWC12,NL1,NL2,NL3,NL4 process
+    class LF2,LF3,LF5,LF6,JS1,JS2,JS3,JS4,JS5,JS6,JS8,JS9,TX1,TX2,TX4,TX5,TX6,TX8,TX9,TX10,TX11,TX12,TX13,FO1,FO2,FO3,FO4,FO5,SL1,SL2,SL3,CL2,CL3,CL4,CL6,CL7 process

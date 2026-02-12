@@ -1,0 +1,16 @@
+flowchart TD
+  Start([Load Called]) --> SetDefaults
+  SetDefaults --> GetPaths[Get Config Paths]
+  GetPaths --> PathsError{Error?}
+  PathsError -->|Yes| ReturnErr[Return nil, error]
+  PathsError -->|No| AddPaths[Add each dir to viper]
+  AddPaths --> ReadConfig[viper.ReadInConfig]
+  ReadConfig --> ReadErr{Error?}
+  ReadErr -->|ConfigFileNotFound| Continue[Continue with defaults]
+  ReadErr -->|Other error| ReturnErr
+  Continue --> BindEnv[SetEnvPrefix & AutomaticEnv]
+  ReadErr -->|No error| BindEnv
+  BindEnv --> Unmarshal[viper.Unmarshal]
+  Unmarshal --> UnmarshalErr{Error?}
+  UnmarshalErr -->|Yes| ReturnErr
+  UnmarshalErr -->|No| ReturnCfg[Return &cfg, nil]

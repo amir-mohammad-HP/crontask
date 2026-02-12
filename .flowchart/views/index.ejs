@@ -1,0 +1,285 @@
+<%
+    const colorMap = {
+        blue: 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50',
+        purple: 'bg-purple-900/30 text-purple-300 hover:bg-purple-900/50',
+        emerald: 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50',
+        amber: 'bg-amber-900/30 text-amber-300 hover:bg-amber-900/50'
+    };
+
+    function getIconForCategory(category) {
+        const icons = {
+            'Entry Point': 'play-circle',
+            'Configuration': 'exchange-alt',
+            'Concurrency': 'tasks',
+            'Logging': 'file-alt',
+            'Data Pipeline': 'database'
+        };
+        return icons[category] || 'diagram-project';
+    }
+%>
+
+<script>
+    function toggleTOC() {
+        const content = document.getElementById('tocContent');
+        const icon = document.getElementById('tocIcon');
+
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'block';
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        } else {
+            content.style.display = 'none';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    }
+
+</script>
+
+<script>
+async function toggleDiagram(diagramId) {
+  const content = document.getElementById('content-' + diagramId);
+  const chevron = document.getElementById('chevron-' + diagramId);
+
+  if (!content) return;
+
+  // SHOW
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+
+    const rendered = content.dataset.mermaidRendered === 'true';
+    const mermaidPre = content.querySelector('pre.mermaid');
+
+    if (!rendered && mermaidPre && window.mermaid) {
+      try {
+        // Extract clean diagram code
+        const diagramCode = mermaidPre.textContent.trim();
+        const uniqueId = `mermaid-${diagramId}-${Date.now()}`;
+
+        // Render the diagram asynchronously
+        const { svg } = await mermaid.render(uniqueId, diagramCode);
+        mermaidPre.innerHTML = svg;
+
+        // Make SVG zoomable and responsive
+        const svgElement = mermaidPre.querySelector('svg');
+        if (svgElement) {
+          makeSVGZoomable(svgElement, diagramId);
+        }
+
+        content.dataset.mermaidRendered = 'true';
+      } catch (e) {
+        console.error('Mermaid render failed:', e);
+        mermaidPre.innerHTML = `<div class="text-red-400 p-4">
+          <i class="fas fa-exclamation-triangle"></i> Failed to render diagram.
+        </div>`;
+      }
+    }
+
+  // HIDE
+  } else {
+    content.style.display = 'none';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
+/**
+* Makes an SVG responsive, sets viewBox, and attaches pan/zoom
+* @param {SVGElement} svg - The SVG element to enhance
+* @param {string} containerId - Unique ID for panZoom instance
+*/
+function makeSVGZoomable(svg, containerId) {
+  // 1. Remove hardcoded width/height
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+
+  // 2. Compute bounding box and set viewBox
+  const bbox = svg.getBBox();
+  svg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+
+  // 3. Make SVG fluid
+  svg.style.maxWidth = '100%';
+  svg.style.width = '100%';
+  svg.style.height = '70lvh';
+
+  // 4. Attach pan-zoom if not already attached
+  if (!svg._panZoomInstance) {
+    svg._panZoomInstance = svgPanZoom(svg, {
+      zoomEnabled: true,
+      controlIconsEnabled: false,
+      fit: true,
+      center: true,
+      minZoom: 0.5,
+      maxZoom: 25,
+      beforePan: function(oldPan, newPan) {
+        // Limit panning if desired (optional)
+        return newPan;
+      }
+    });
+  }
+}
+
+function zoomDiagram(diagramId, factor) {
+  const content = document.getElementById('content-' + diagramId);
+  const svg = content?.querySelector('svg');
+  if (svg && svg._panZoomInstance) {
+    svg._panZoomInstance.zoom(factor);
+  }
+}
+
+function resetDiagramZoom(diagramId) {
+  const content = document.getElementById('content-' + diagramId);
+  const svg = content?.querySelector('svg');
+  if (svg && svg._panZoomInstance) {
+    svg._panZoomInstance.fit();
+    svg._panZoomInstance.center();
+  }
+}
+
+</script>
+
+<!-- Header Section -->
+<header class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg p-8 mb-10 border border-gray-700">
+    <div class="flex flex-col items-center mb-6">
+        <div class="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-project-diagram text-3xl text-primary"></i>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-white">Application Execution Flow</h1>
+        <p class="text-lg text-gray-400 mt-2">Go Application Architecture & Flow Visualization</p>
+    </div>
+
+    <!-- Table of Contents - Default CLOSED -->
+    <div class="bg-gray-800/50 dark:bg-darkcard border border-gray-700 rounded-xl p-6 mb-8 max-w-3xl mx-auto shadow-lg">
+        <button id="tocToggle" class="w-full flex items-center justify-between text-left">
+            <h3 class="text-xl font-bold text-white mb-0 flex items-center">
+                <i class="fas fa-list-ul text-primary mr-3"></i>
+                Table of Contents
+                <span class="ml-3 text-sm text-gray-400">(<%= diagrams.length %> diagrams)</span>
+            </h3>
+            <i id="tocIcon" class="fas fa-chevron-down text-gray-400 transition-transform rotate-180"></i>
+        </button>
+        <div id="tocContent" class="toc-content mt-4" style="display: none;">
+            <div class="space-y-3">
+                <% diagrams.forEach(diagram => { %>
+                <a href="#diagram-<%= diagram.id %>"
+                   class="toc-link flex items-center p-3 rounded-lg border border-gray-700 transition-colors <%= colorMap[diagram.color] || 'bg-gray-900/30 text-gray-300' %>">
+                    <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center mr-3 font-bold"><%= diagram.id %></div>
+                    <div>
+                        <h4 class="font-medium text-gray-200"><%= diagram.category %></h4>
+                        <p class="text-sm text-gray-400"><%= diagram.title %></p>
+                    </div>
+                </a>
+                <% }) %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Section -->
+    <div class="bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-lg max-w-3xl mx-auto border border-yellow-900/30">
+        <div class="flex items-start">
+            <div class="flex-shrink-0 p-2 bg-yellow-900/30 rounded-lg mr-4">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-yellow-200 mb-3">Important Notes</h3>
+                <ul class="space-y-3 text-yellow-300">
+                    <li class="flex items-start"><i class="fas fa-info-circle mt-1 mr-2 text-yellow-500"></i><span><strong>This is a learning aid only</strong> – The actual code is the single source of truth.</span></li>
+                    <li class="flex items-start"><i class="fas fa-robot mt-1 mr-2 text-yellow-500"></i><span><strong>Educational Purpose</strong> – This application was built for learning.</span></li>
+                    <li class="flex items-start"><i class="fas fa-exclamation-circle mt-1 mr-2 text-yellow-500"></i><span><strong>Not production-ready</strong> – Use with extreme caution.</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Back to Top Button -->
+<div class="sticky top-20 z-10 mb-6 flex justify-end">
+    <a href="#" class="bg-primary hover:bg-blue-600 text-white p-3 rounded-full shadow-lg transition-colors">
+        <i class="fas fa-arrow-up"></i>
+    </a>
+</div>
+
+<!-- Diagrams Container -->
+<div class="space-y-8 mb-12">
+    <% diagrams.forEach(diagram => { %>
+
+    <div id="diagram-<%= diagram.id %>" class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg overflow-hidden card-hover border border-gray-700">
+        <!-- Diagram Header - Clickable -->
+        <div class="bg-gradient-to-r <%= diagram.gradient %> text-white p-6 cursor-pointer"
+             onclick="toggleDiagram('<%= diagram.id %>')">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                        <span class="font-bold"><%= diagram.id %></span>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold">
+                            <i class="fas fa-<%= getIconForCategory(diagram.category) %> mr-2"></i>
+                            <%= diagram.title %>
+                        </h2>
+                        <p class="text-white/80 text-sm mt-1"><%= diagram.subtitle %></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm"><%= diagram.category %></span>
+                    <i id="chevron-<%= diagram.id %>" class="fas fa-chevron-down text-white transition-transform rotate-180"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagram Content - Hidden by default -->
+        <div id="content-<%= diagram.id %>" style="display: none;" data-mermaid-rendered="false">
+
+            <div class="p-6">
+                <!-- Responsive container: no fixed width -->
+                <div class="bg-gray-900/50 p-4 rounded-xl border-l-4 border-<%= diagram.color %>-500">
+                    <div class="w-full max-w-5xl mx-auto">
+                        <pre class="mermaid w-full">
+                            <%= diagram.mermaidCode.trim() %>
+                        </pre>
+
+                        <!-- ✅ Zoom Toolbar – now with correct EJS interpolation -->
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button onclick="zoomDiagram('<%= diagram.id %>', 0.8)"
+                                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-search-minus"></i> Zoom Out
+                            </button>
+                            <button onclick="zoomDiagram('<%= diagram.id %>', 1.2)"
+                                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-search-plus"></i> Zoom In
+                            </button>
+                            <button onclick="resetDiagramZoom('<%= diagram.id %>')"
+                                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-undo-alt"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 bg-gray-800/50 p-5 rounded-xl border border-gray-700">
+                    <h3 class="text-lg font-bold text-gray-200 mb-3">
+                        <i class="fas fa-info-circle text-<%= diagram.color %>-400 mr-2"></i>Description
+                    </h3>
+                    <%- diagram.description %>
+                </div>
+            </div>
+            <div class="bg-gray-900/50 px-6 py-4 border-t border-gray-700">
+                <div class="flex justify-between items-center text-sm text-gray-400">
+                    <div class="flex items-center"><i class="fas fa-clock mr-2"></i><span>Updated: <%= diagram.updated %></span></div>
+                    <div class="flex items-center"><i class="fas fa-code mr-2"></i><span><%= diagram.author %></span></div>
+                    <div class="flex items-center"><a href="/diagram/<%= diagram.id %>" class="text-blue-400 hover:text-blue-300"><i class="fas fa-external-link-alt mr-1"></i>View Details</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% }) %>
+
+    <script>
+        // Add event listeners after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // TOC toggle
+            const tocToggle = document.getElementById('tocToggle');
+            if (tocToggle) {
+                tocToggle.addEventListener('click', toggleTOC);
+            }
+
+        });
+    </script>
+</div>

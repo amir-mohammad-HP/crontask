@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title || 'Go Application Execution Flow' %></title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3498db",
+                        secondary: "#2c3e50",
+                        warning: "#ffc107",
+                        info: "#0dcaf0",
+                        danger: "#dc3545",
+                        darkbg: "#0f172a",
+                        darkcard: "#1e293b",
+                        darkborder: "#334155",
+                    },
+                    animation: {
+                        "fade-in": "fadeIn 0.5s ease-in-out",
+                        "slide-up": "slideUp 0.3s ease-out",
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            "0%": { opacity: "0" },
+                            "100%": { opacity: "1" },
+                        },
+                        slideUp: {
+                            "0%": { transform: "translateY(10px)", opacity: "0" },
+                            "100%": { transform: "translateY(0)", opacity: "1" },
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+
+
+    <!-- svg-pan-zoom -->
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+
+    <!-- Mermaid JS - UMD version (no chunk loading issues) -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        window.mermaid = mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: document.documentElement.classList.contains("dark") ? "dark" : "base",
+            themeVariables: {
+                primaryColor: "#0f172a",
+                primaryTextColor: "#e2e8f0",
+                primaryBorderColor: "#475569",
+                lineColor: "#64748b",
+                secondaryColor: "#1e293b",
+                tertiaryColor: "#334155",
+            },
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                maxWidth: "100%",
+                curve: "basis",
+                nodeSpacing: 50,
+                rankSpacing: 50,
+            },
+            er: { useMaxWidth: true },
+            sequence: { useMaxWidth: true },
+            securityLevel: 'loose'
+        });
+        mermaid.parseError = function (err, hash) {
+            console.error(err);
+        };
+        console.log('✅ Mermaid loaded');
+    </script>
+
+    <style>
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .dark .mermaid svg { background-color: transparent !important; }
+        .toc-content { transition: max-height 0.3s ease-out; overflow: hidden; }
+        .diagram-content { transition: max-height 0.3s ease-out; overflow: hidden; }
+    </style>
+
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-darkbg dark:to-gray-900 text-gray-200">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Theme Toggle Button -->
+        <div class="fixed top-4 right-4 z-50">
+            <button id="themeToggle" class="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white p-3 rounded-full shadow-lg transition-colors">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+        </div>
+
+        <!-- Content from child views -->
+        <%- body %>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg p-8 border border-gray-700 mt-8">
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-white mb-4">Technical Documentation</h3>
+                <p class="text-gray-400 max-w-2xl mx-auto mb-8">
+                    This visualization is part of a learning project to understand Go application architecture.
+                </p>
+                <div class="border-t border-gray-700 pt-6 text-gray-500 text-sm">
+                    <p class="italic">Remember: This documentation is a learning tool. Always verify against actual source code.</p>
+                    <p class="mt-2 text-gray-400">&copy; <%= currentYear %> | All diagrams stored as JSON files</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Theme Toggle
+        document.getElementById('themeToggle')?.addEventListener('click', function() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                html.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        });
+        // Set dark mode by default
+        document.documentElement.classList.add('dark');
+    </script>
+
+</body>
+</html>

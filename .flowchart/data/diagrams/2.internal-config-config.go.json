@@ -1,0 +1,11 @@
+{
+  "id": 2,
+  "title": "internal/config/config.go",
+  "subtitle": "Configuration Loading Flow",
+  "category": "Configuration",
+  "description": "<div class=\"space-y-4\"><div class=\"bg-gray-800 p-4 rounded-lg border border-gray-700\"><p class=\"text-gray-300\"><strong>Viper:</strong> A complete configuration solution for Go applications (supports JSON, YAML, TOML, env vars, etc.)</p></div></div>",
+  "updated": "2026/02/10",
+  "author": "A.M.Hamidipour",
+  "color": "purple",
+  "gradient": "from-purple-500 to-indigo-600"
+}

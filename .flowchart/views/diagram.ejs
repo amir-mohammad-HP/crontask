@@ -1,0 +1,60 @@
+<%
+    function getIconForCategory(category) {
+        const icons = {
+            'Entry Point': 'play-circle',
+            'Configuration': 'exchange-alt',
+            'Concurrency': 'tasks',
+            'Logging': 'file-alt',
+            'Data Pipeline': 'database'
+        };
+        return icons[category] || 'diagram-project';
+    }
+%>
+
+<!-- Navigation -->
+<div class="mb-6">
+    <a href="/" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+        <i class="fas fa-arrow-left mr-2"></i>Back to All Diagrams
+    </a>
+</div>
+
+<!-- Diagram Detail Card -->
+<div class="bg-gray-800 dark:bg-darkcard rounded-2xl shadow-lg overflow-hidden border border-gray-700">
+    <div class="bg-gradient-to-r <%= diagram.gradient %> text-white p-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                    <span class="font-bold text-2xl"><%= diagram.id %></span>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold">
+                        <i class="fas fa-<%= getIconForCategory(diagram.category) %> mr-3"></i>
+                        <%= diagram.title %>
+                    </h1>
+                    <p class="text-white/80 text-lg mt-2"><%= diagram.subtitle %></p>
+                </div>
+            </div>
+            <span class="bg-white/20 px-4 py-2 rounded-full text-lg"><%= diagram.category %></span>
+        </div>
+    </div>
+
+    <div class="p-8">
+        <div class="bg-gray-900/50 p-6 rounded-xl border-l-4 border-<%= diagram.color %>-500 overflow-x-auto mb-8">
+            <div class="mermaid"><%= diagram.mermaidCode %></div>
+        </div>
+        <div class="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
+            <h2 class="text-2xl font-bold text-gray-200 mb-4">
+                <i class="fas fa-info-circle text-<%= diagram.color %>-400 mr-2"></i>Detailed Description
+            </h2>
+            <%- diagram.description %>
+        </div>
+    </div>
+
+    <div class="bg-gray-900/50 px-8 py-4 border-t border-gray-700">
+        <div class="flex justify-between items-center text-gray-400">
+            <div class="flex items-center"><i class="fas fa-clock mr-2"></i><span>Last Updated: <%= diagram.updated %></span></div>
+            <div class="flex items-center"><i class="fas fa-code mr-2"></i><span>Author: <%= diagram.author %></span></div>
+            <div class="flex items-center"><i class="fas fa-file-code mr-2"></i><span>Diagram ID: <%= diagram.id %></span></div>
+        </div>
+    </div>
+</div>

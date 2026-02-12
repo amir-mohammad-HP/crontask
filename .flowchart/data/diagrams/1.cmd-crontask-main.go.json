@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "title": "cmd/crontask/main.go",
+  "subtitle": "Entry Point - Program Initialization",
+  "category": "Entry Point",
+  "description": "<div class=\"space-y-4\"><div><p class=\"text-gray-300 mb-2\"><strong>Note:</strong> The architecture is modular by design. If you replace the complex task scheduling logic with a simple <code class=\"bg-gray-700 px-2 py-1 rounded text-gray-200\">Print(\"Hello World\")</code> in the application's <code class=\"bg-gray-700 px-2 py-1 rounded text-gray-200\">Run()</code> method, the entire initialization sequence would still execute correctly.</p></div><div class=\"grid grid-cols-1 md:grid-cols-2 gap-4\"><div class=\"bg-green-900/20 p-4 rounded-lg border border-green-900/30\"><h4 class=\"font-bold text-green-300 mb-2\">Exit Code 0</h4><p class=\"text-green-400\">Graceful shutdown after successful execution</p></div><div class=\"bg-red-900/20 p-4 rounded-lg border border-red-900/30\"><h4 class=\"font-bold text-red-300 mb-2\">Exit Code 1</h4><p class=\"text-red-400\">Error termination during configuration loading or application runtime failures</p></div></div></div>",
+  "updated": "2026/02/10",
+  "author": "A.M.Hamidipour",
+  "color": "blue",
+  "gradient": "from-blue-500 to-cyan-600"
+}
