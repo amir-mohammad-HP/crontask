@@ -1,0 +1,51 @@
+flowchart TD
+    Start([App.Run Called]) --> Init[Initialize Components]
+
+    Init --> SignalSetup[Setup Signal Handler]
+    SignalSetup --> Context[Create Cancel Context]
+    Context --> SignalGoroutine[Launch Signal Handler Goroutine]
+
+    SignalGoroutine --> WaitSignal[Wait for OS Signals]
+    WaitSignal --> SignalReceived{Signal Received?}
+    SignalReceived -->|Yes| ShutdownCallback[Execute Shutdown Callback]
+    ShutdownCallback --> ShutdownInit[Initiate Shutdown]
+
+    SignalSetup --> RegisterTasks[Register Shutdown Tasks]
+    RegisterTasks --> RegisterWorker[Register Worker.Stop]
+    RegisterTasks --> RegisterApp[Register App.cleanup]
+
+    RegisterTasks --> StartWorker[Start Worker]
+    StartWorker --> WorkerStatus{Worker Started?}
+    WorkerStatus -->|Error| ReturnError[Return Error to Main]
+    WorkerStatus -->|Success| WaitShutdown[Wait for Shutdown Signal]
+
+    WaitShutdown --> ShutdownTrigger{Shutdown Initiated?}
+    ShutdownTrigger -->|No| WaitShutdown
+    ShutdownTrigger -->|Yes| ShutdownWait[Shutdown.Wait]
+
+    ShutdownWait --> WorkerStop[Stop Worker]
+    ShutdownWait --> AppCleanup[Execute App Cleanup]
+
+    WorkerStop --> WaitGroup[Wait for All Goroutines]
+    AppCleanup --> WaitGroup
+
+    WaitGroup --> Complete([Application Shutdown Complete])
+
+    ReturnError --> ExitError([Return Error])
+    Complete --> ExitSuccess([Return nil])
+
+    %% Styling
+    classDef process fill:#1e293b,stroke:#3498db,stroke-width:2px,color:#e2e8f0
+    classDef decision fill:#334155,stroke:#ffc107,stroke-width:2px,color:#e2e8f0
+    classDef terminator fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
+    classDef error fill:#450a0a,stroke:#dc3545,stroke-width:2px,color:#e2e8f0
+    classDef component fill:#1e3a5f,stroke:#4f9eff,stroke-width:2px,color:#e2e8f0
+
+    class Start,ExitSuccess,ExitError,Complete terminator
+    class WorkerStatus,SignalReceived,ShutdownTrigger decision
+    class Init,SignalSetup,Context,RegisterTasks process
+    class SignalGoroutine,WaitSignal component
+    class ShutdownCallback,ShutdownInit,StartWorker,WaitShutdown process
+    class RegisterWorker,RegisterApp component
+    class ShutdownWait,WorkerStop,AppCleanup,WaitGroup process
+    class ReturnError error

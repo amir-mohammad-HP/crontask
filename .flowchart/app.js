@@ -36,7 +36,6 @@ function titleToFilename(title) {
     title
       .replace(/\//g, "-") // Replace / with -
       .replace(/\\/g, "-") // Replace \ with -
-      .replace(/\./g, "-") // Replace . with -
       .toLowerCase() + // Convert to lowercase
     ".mmd"
   );

@@ -1,0 +1,11 @@
+{
+  "id": 4,
+  "title": "internal/app/app.go",
+  "subtitle": "Application Core - Orchestration Layer",
+  "category": "Application Core",
+  "description": "<div class=\"space-y-4\"><div><p class=\"text-gray-300 mb-2\"><strong>Note:</strong> The App struct serves as the orchestration layer, coordinating all major components: worker pool, signal handling, and shutdown management. It follows the composition pattern where each component is independently testable and replaceable.</p></div><div class=\"grid grid-cols-1 md:grid-cols-2 gap-4\"><div class=\"bg-blue-900/20 p-4 rounded-lg border border-blue-900/30\"><h4 class=\"font-bold text-blue-300 mb-2\">Component Composition</h4><ul class=\"text-blue-400 text-sm space-y-1\"><li>• Worker: Task execution engine</li><li>• Shutdown Manager: Graceful termination</li><li>• Signal Handler: OS signal processing</li><li>• WaitGroup: Goroutine synchronization</li></ul></div><div class=\"bg-purple-900/20 p-4 rounded-lg border border-purple-900/30\"><h4 class=\"font-bold text-purple-300 mb-2\">Key Methods</h4><ul class=\"text-purple-400 text-sm space-y-1\"><li>• New(): Constructor with DI</li><li>• Run(): Main orchestration loop</li><li>• cleanup(): Resource cleanup hook</li></ul></div></div><div class=\"mt-4 p-3 bg-gray-800 rounded-lg\"><p class=\"text-gray-300 text-sm\"><strong>Shutdown Sequence:</strong> Signal → Context Cancel → Shutdown Initiation → Worker Stop → WaitGroup Wait → Cleanup → Exit</p></div></div>",
+  "updated": "2026/02/17",
+  "author": "A.M.Hamidipour",
+  "color": "blue",
+  "gradient": "from-indigo-500 to-purple-600"
+}
