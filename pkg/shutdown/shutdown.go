@@ -54,7 +54,7 @@ func (m *Manager) executeTasks() error {
 	m.logger.Debug("shutdown | executing %d tasks before shutdown", len(m.tasks))
 	var task_num int = 1
 	for name, task := range m.tasks {
-		m.logger.Info("shutdown | Executing shutdown task %d: %s", task_num, name)
+		m.logger.Info("shutdown | Executing shutdown task [%d]: %s", task_num, name)
 		if err := task(); err != nil {
 			m.logger.Error("shutdown | Task failed, task: %s, error: %s", name, err)
 		}
