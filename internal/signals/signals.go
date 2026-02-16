@@ -23,10 +23,10 @@ func (h *Handler) Handle(ctx context.Context, shutdownFunc func()) {
 
 	select {
 	case <-ctx.Done():
-		h.logger.Info("Signal handler context cancelled")
+		h.logger.Info("signal handler | Signal handler context cancelled")
 		return
 	case sig := <-sigChan:
-		h.logger.Info("Received signal %s", sig.String())
+		h.logger.Info("signal handler | Received signal %s", sig.String())
 		shutdownFunc()
 	}
 }

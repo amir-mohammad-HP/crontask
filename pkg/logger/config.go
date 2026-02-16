@@ -12,7 +12,7 @@ import (
 func DefaultConfig() *types.LoggerConfig {
 	return &types.LoggerConfig{
 		Level:           "info",
-		Format:          "text",
+		Format:          "text", 
 		Output:          "stdout",
 		FilePath:        "",
 		MaxSize:         10, // MB

@@ -31,7 +31,7 @@ func New(cfg *types.Config, logger *logger.StdLogger) *App {
 }
 
 func (a *App) Run() error {
-	a.logger.Debug("Starting CronTask application")
+	a.logger.Debug("app | Starting CronTask application")
 
 	// Setup signal handling
 	ctx, cancel := context.WithCancel(context.Background())
@@ -39,7 +39,7 @@ func (a *App) Run() error {
 
 	// Start signal handler
 	go a.signalHandler.Handle(ctx, func() {
-		a.logger.Debug("Received shutdown signal")
+		a.logger.Debug("signal handler callback | Received shutdown signal")
 		a.shutdown.Initiate()
 	})
 
@@ -52,16 +52,19 @@ func (a *App) Run() error {
 		return err
 	}
 
-	// Wait for shutdown
+	a.logger.Debug("app | wait to catch shutdown signal")
 	<-a.shutdown.Done()
+	a.shutdown.Wait(ctx)
+
+	a.logger.Debug("app | wait to apply shutdown signal on all groups")
 	a.wg.Wait()
 
-	a.logger.Debug("Application shutdown complete")
+	a.logger.Debug("app | Application shutdown complete")
 	return nil
 }
 
 func (a *App) cleanup() error {
-	a.logger.Debug("Performing application cleanup")
+	a.logger.Debug("app | Performing application cleanup")
 	// Add cleanup logic here
 	return nil
 }

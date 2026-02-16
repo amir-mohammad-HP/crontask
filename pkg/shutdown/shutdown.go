@@ -40,7 +40,7 @@ func (m *Manager) Done() <-chan struct{} {
 func (m *Manager) Wait(ctx context.Context) error {
 	select {
 	case <-m.shutdown:
-		m.logger.Info("Starting shutdown sequence")
+		m.logger.Info("shutdown | Starting shutdown sequence")
 		return m.executeTasks()
 	case <-ctx.Done():
 		return ctx.Err()
@@ -51,11 +51,14 @@ func (m *Manager) executeTasks() error {
 	_, cancel := context.WithTimeout(context.Background(), m.timeout)
 	defer cancel()
 
+	m.logger.Debug("shutdown | executing %d tasks before shutdown", len(m.tasks))
+	var task_num int = 1
 	for name, task := range m.tasks {
-		m.logger.Info("Executing shutdown task %s", name)
+		m.logger.Info("shutdown | Executing shutdown task %d: %s", task_num, name)
 		if err := task(); err != nil {
-			m.logger.Error("Task failed, task: %s, error: %s", name, err)
+			m.logger.Error("shutdown | Task failed, task: %s, error: %s", name, err)
 		}
+		task_num++
 	}
 
 	return nil

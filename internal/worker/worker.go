@@ -49,38 +49,24 @@ func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 }
 
 func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	w.logger.Debug("Starting worker")
+	w.logger.Debug("worker | starting worker")
 
 	wg.Add(1)
-	go w.run(ctx)
+	go w.runCron(ctx, wg)
 
 	return nil
 }
 
-func (w *Worker) run(ctx context.Context) {
-	defer w.logger.Info("Worker stopped")
-	defer w.cleanup()
+func (w *Worker) Stop() error {
+	w.Cleanup()
+	close(w.shutdown)
+	w.logger.Debug("worker | stopped")
+	return nil
+}
 
-	// Start Docker monitor if enabled
-	if w.dockerMon != nil {
-		if err := w.dockerMon.Start(ctx); err != nil {
-			w.logger.Error("Failed to start Docker monitor, %s", err.Error())
-		} else {
-			go w.handleDockerEvents(ctx)
-		}
-	}
-
-	// Start cron scheduler
-	w.cron.Start()
-	w.logger.Debug("Worker cron scheduler started")
-
-	// Wait for shutdown
-	select {
-	case <-ctx.Done():
-		w.logger.Debug("Worker received context cancellation")
-	case <-w.shutdown:
-		w.logger.Debug("Worker received shutdown signal")
-	}
+func (w *Worker) Cleanup() error {
+	w.logger.Debug("worker | cleanup")
+	return nil
 }
 
 func (w *Worker) handleDockerEvents(ctx context.Context) {
@@ -188,19 +174,6 @@ func (w *Worker) executeJob(job *job.DockerJob) {
 			"job", job.Name(),
 			"container", job.GetContainerID()[:12])
 	}
-}
-
-func (w *Worker) cleanup() {
-	w.cron.Stop()
-	if w.dockerMon != nil {
-		w.dockerMon.Stop()
-	}
-}
-
-func (w *Worker) Stop() error {
-	w.logger.Info("Stopping worker")
-	close(w.shutdown)
-	return nil
 }
 
 // GetStats returns worker statistics
