@@ -17,7 +17,7 @@ services:
       - ./tmp:/tmp
     labels:
       - "crontask.cronjob('*/1 * * * *').task=/bin/sh -c 'date > /tmp/date.txt'"
-      - 'crontask.cronjob(''1 * * * *'').task=/bin/sh -c ''echo "Cleanup task" > /tmp/cleanup.log'''
+      - 'crontask.cronjob(''*/1 * * * *'').task=/bin/sh -c ''echo "Cleanup task $DATE" > /tmp/cleanup.log'''
 
   # task-runner-2:
   #   image: ubuntu:latest

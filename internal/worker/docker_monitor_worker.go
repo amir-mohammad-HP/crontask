@@ -10,6 +10,7 @@ func (w *Worker) runDockerMon(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer w.cleanupDockerMon()
 
+	wg.Add(1)
 	// Start Docker monitor if enabled
 	if w.dockerMon != nil {
 		if err := w.dockerMon.Start(ctx); err != nil {

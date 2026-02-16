@@ -51,11 +51,8 @@ func New(cfg *types.Config, logger *logger.StdLogger) *Worker {
 func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	w.logger.Debug("worker | starting worker")
 
-	wg.Add(1)
 	go w.runCron(ctx, wg)
-
-	wg.Add(1)
-	go w.runDockerMon(ctx, wg)
+	// go w.runDockerMon(ctx, wg)
 
 	return nil
 }

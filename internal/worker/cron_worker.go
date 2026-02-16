@@ -10,6 +10,7 @@ func (w *Worker) runCron(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer w.cleanupCron()
 
+	wg.Add(1)
 	// Start cron scheduler
 	w.cron.Start()
 	w.logger.Debug("cron worker | cron scheduler started")
