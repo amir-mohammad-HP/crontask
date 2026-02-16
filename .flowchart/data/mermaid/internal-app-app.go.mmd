@@ -1,38 +1,41 @@
 flowchart TD
-    Start([App.Run Called]) --> Init[Initialize Components]
+    Start([App.Run Entry Point]) --> DebugStart[Log Application Start]
 
-    Init --> SignalSetup[Setup Signal Handler]
-    SignalSetup --> Context[Create Cancel Context]
+    DebugStart --> Context[Create Cancel Context]
     Context --> SignalGoroutine[Launch Signal Handler Goroutine]
 
-    SignalGoroutine --> WaitSignal[Wait for OS Signals]
-    WaitSignal --> SignalReceived{Signal Received?}
-    SignalReceived -->|Yes| ShutdownCallback[Execute Shutdown Callback]
-    ShutdownCallback --> ShutdownInit[Initiate Shutdown]
+    subgraph "Signal Handling"
+        SignalGoroutine --> WaitSignal[Wait for OS Signals]
+        WaitSignal --> SignalReceived{Signal Received?}
+        SignalReceived -->|Yes| ShutdownCallback[Execute Shutdown Callback]
+        ShutdownCallback --> ShutdownInit[shutdown.Initiate]
+    end
 
-    SignalSetup --> RegisterTasks[Register Shutdown Tasks]
-    RegisterTasks --> RegisterWorker[Register Worker.Stop]
-    RegisterTasks --> RegisterApp[Register App.cleanup]
+    Context --> RegisterTasks[Register Shutdown Tasks]
+    RegisterTasks --> RegisterWorker[Register worker.Stop]
+    RegisterTasks --> RegisterApp[Register app.cleanup]
 
     RegisterTasks --> StartWorker[Start Worker]
-    StartWorker --> WorkerStatus{Worker Started?}
-    WorkerStatus -->|Error| ReturnError[Return Error to Main]
-    WorkerStatus -->|Success| WaitShutdown[Wait for Shutdown Signal]
+    StartWorker --> WorkerStatus{worker.Start <br> Successful?}
+    WorkerStatus -->|Error| ReturnError[Return Error to main.go]
+    WorkerStatus -->|Success| WaitShutdown["Log Waiting State <br> <-shutdown.Done()"]
 
-    WaitShutdown --> ShutdownTrigger{Shutdown Initiated?}
+    WaitShutdown --> ShutdownTrigger{shutdown.Initiate <br> Called?}
     ShutdownTrigger -->|No| WaitShutdown
-    ShutdownTrigger -->|Yes| ShutdownWait[Shutdown.Wait]
+    ShutdownTrigger -->|Yes| ShutdownWait[shutdown.Wait]
 
-    ShutdownWait --> WorkerStop[Stop Worker]
-    ShutdownWait --> AppCleanup[Execute App Cleanup]
+    ShutdownInit --> ShutdownTrigger
 
-    WorkerStop --> WaitGroup[Wait for All Goroutines]
+    ShutdownWait --> WorkerStop[Execute worker.Stop]
+    ShutdownWait --> AppCleanup[Execute app.cleanup]
+
+    WorkerStop --> WaitGroup[a.wg.Wait <br> Wait for All Goroutines]
     AppCleanup --> WaitGroup
 
-    WaitGroup --> Complete([Application Shutdown Complete])
+    WaitGroup --> Complete[Log Shutdown Complete]
+    Complete --> ExitSuccess([Return nil to main.go])
 
-    ReturnError --> ExitError([Return Error])
-    Complete --> ExitSuccess([Return nil])
+    ReturnError --> ExitError([Return Error to main.go])
 
     %% Styling
     classDef process fill:#1e293b,stroke:#3498db,stroke-width:2px,color:#e2e8f0
@@ -40,12 +43,14 @@ flowchart TD
     classDef terminator fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
     classDef error fill:#450a0a,stroke:#dc3545,stroke-width:2px,color:#e2e8f0
     classDef component fill:#1e3a5f,stroke:#4f9eff,stroke-width:2px,color:#e2e8f0
+    classDef subgraphStyle fill:#1e293b,stroke:#64748b,stroke-width:2px
 
-    class Start,ExitSuccess,ExitError,Complete terminator
+    class Start,ExitSuccess,ExitError terminator
     class WorkerStatus,SignalReceived,ShutdownTrigger decision
-    class Init,SignalSetup,Context,RegisterTasks process
-    class SignalGoroutine,WaitSignal component
-    class ShutdownCallback,ShutdownInit,StartWorker,WaitShutdown process
+    class DebugStart,Context,RegisterTasks,StartWorker process
+    class SignalGoroutine,WaitSignal,ShutdownCallback,ShutdownInit component
     class RegisterWorker,RegisterApp component
-    class ShutdownWait,WorkerStop,AppCleanup,WaitGroup process
+    class WaitShutdown,ShutdownWait,WorkerStop,AppCleanup process
+    class WaitGroup,Complete process
     class ReturnError error
+    class ShutdownInit,ShutdownTrigger critical
