@@ -33,7 +33,6 @@ func New(cfg *types.Config, logger *logger.StdLogger) *App {
 func (a *App) Run() error {
 	a.logger.Debug("app | Starting CronTask application")
 
-	// Setup signal handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
