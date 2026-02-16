@@ -1,9 +1,13 @@
 package worker
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
-func (w *Worker) runDockerMon(ctx context.Context) {
+func (w *Worker) runDockerMon(ctx context.Context, wg *sync.WaitGroup) {
 	defer w.logger.Debug("docker monitor | Worker stopped")
+	defer wg.Done()
 	defer w.cleanupDockerMon()
 
 	// Start Docker monitor if enabled

@@ -54,6 +54,9 @@ func (w *Worker) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	go w.runCron(ctx, wg)
 
+	wg.Add(1)
+	go w.runDockerMon(ctx, wg)
+
 	return nil
 }
 
